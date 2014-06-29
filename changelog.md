@@ -1,5 +1,4 @@
 # Changelog
-----------
 
 ## Canvas Development #3 - 1/6/2014
 - Click on an existing dots to select and/or deselect

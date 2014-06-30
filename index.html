@@ -2,40 +2,81 @@
 <html lang="en">
 <head>
  <meta charset="UTF-8">
+ <title>Canvas 1</title>
  <script>
 
-//3456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 1234567890
+    var gridSize = 10;
+    var canvasWidth = 300;
+    var canvasHeight = 300;
+    
+    var canvasElement;
+    var drawingContext;
 
+function Mouse(x, y) {
+    this.x = x;
+    this.y = y;
+}
+
+function getCursorPosition(e) {
+    /* returns Mouse with .x and .y properties */
+    var x;
+    var y;
+    if (e.pageX != undefined && e.pageY != undefined) {
+        x = e.pageX;
+        y = e.pageY;
+    } else {
+        x = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+        y = e.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+    }
+    x -= canvasElement.offsetLeft;
+    y -= canvasElement.offsetTop;
+
+    var mouse = new Mouse(x, y);
+    return mouse;
+}
+
+function canvasOnClick(e) {
+    var mouse = getCursorPosition(e);
+
+    drawingContext.beginPath();
+    drawingContext.arc(mouse.x, mouse.y, 10, 0, Math.PI*2, false);
+    drawingContext.closePath();
+
+    drawingContext.fillStyle = "#fff";
+	drawingContext.fill();
+
+    drawingContext.strokeStyle = "#888";
+    drawingContext.lineWidth = 3
+    drawingContext.stroke();
+
+}
+
+function init(canvas) {
+    if (!canvas) {
+        canvas = document.createElement("canvas");
+    	canvas.id = "canvas";
+    	document.body.appendChild(canvas);
+    }
+    canvasElement = canvas;
+    canvasElement.width = canvasWidth;
+    canvasElement.height = canvasHeight;
+    canvasElement.addEventListener("click", canvasOnClick, false);
+    drawingContext = canvasElement.getContext("2d");
+
+    var gradient = drawingContext.createLinearGradient(0, 0, canvasWidth, canvasHeight);
+    gradient.addColorStop(0, "#d0d0d0");
+    gradient.addColorStop(1, "#fbfbfb");
+    drawingContext.fillStyle = gradient;
+    // drawingContext.fillStyle = "#eee";
+    drawingContext.fillRect(0, 0, canvasWidth, canvasHeight)
+}
  </script>
- <title>Canvas 10</title>
 </head>
 <body>
- <h1>Canvas Development #10</h1>
- <p>Double-click anywhere in the square to draw a circle!</p>
- <div style="float: left; height: 320px; width: 315px; overflow: auto;">
-  <!-- use "overflow: scroll;" to make scroll bars always visible -->
-  <!-- It looks like, in Chrome on my Chromebook, the width of the parent div needs to be at least 15px greater than the canvas, and the height at least 20px greater, for the scroll bars to deactivate -->
-  <canvas id="myCanvas" width="100" height="100"></canvas>
- </div>
- <p>Number of items: <span id="counter">-1</span><br />
-    Next unique item id: <span id="nextId">-1</span><br />
-    This item id: <span id="thisId">-1</span><br />
-    Click on a circle to select it, shift-click to add to your selection, or control-click to toggle selection.<br />
-    Press backsapce/delete to delete selected circles!<br />
-    (note: if nothing is selected, then backspace will do it's default action, which is to go to the previous page in your browser's history...)<br />
-    (also note: the canvas needs to have the input focus (shown by a blue halo) to catch any keyboard events)<br />
-    Ctrl-A will select all circles.<br />
-    Internally, started change towards a more 'object-oriented' approach... (circles are more object-y; so is the selection list; and the list of items)<br />
-    Double-clicking now supported - double click to create a circle, and double-click on a circle to select only it!<br />
-    Internally separated out the stacking order from the list of items - hopefully a useful move in the future!..<br />
-    Also started making more use of prototypes... Circles now inherit from a new Item type, and generic Circle functions are contained in the Circle.prototype, rather than in each Circle instance individually (I think this is an efficient move..?)<br />
-    Finally!.. Added the ability to move a circle - or a selection of multiple circles! :-)<br />
-    Internally, created a 'mouse' object to rememebr where the mouse is - for key press events and the like.  This also meant I could tidy a few other bits up and move a couple of functions within the 'mouse' object.<br />
-    Internally, added a 'selected' property to each item - I think this should speed a few things up, as we won't have to scan through the entire list of selected items to work out if something is selected - which we need to do every time we re-draw an item, so dragging (lots of) items around should be smoother...  Also used in Item.isMouseOver, to work out if we need to apply an offset to our known position.<br />
-    Okay, big change - we no longer have a list of items.  Instead, where we'd like to keep track of an item, we just point at that item...  Item Ids are a thing of the past! (I think...)
- </p>
+ <h1>Canvas Experiment #1</h1>
+ <p>Click anywhere in the grey square to draw a dot!</p>
  <script>
-   init();
+   init(null);
  </script>
 </body>
 </html>

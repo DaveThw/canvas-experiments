@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
  <meta charset="UTF-8">
- <title>Canvas 2</title>
  <script>
 
     var gridSize = 10;
@@ -12,6 +11,7 @@
     var canvasElement;
     var drawingContext;
     var counterElement;
+    var nextIdElement;
     var objects;
     var newObjectId = 0;
     var selectedObjects;
@@ -125,15 +125,15 @@ function canvasMouseMove(e) {
 function setCursor(obj) {
     if (obj == -1) {
         // not over any existing objects
-		canvas.style.cursor = "default";
+		canvasElement.style.cursor = "default";
     } else {
         // over an object
         switch(objects[obj].type) {
         case "circle":
-    		canvas.style.cursor = "pointer";
+    		canvasElement.style.cursor = "pointer";
             break;
         default:
-    		canvas.style.cursor = "default";
+    		canvasElement.style.cursor = "default";
         }
     }
 }
@@ -156,6 +156,18 @@ function bodyKeyDown(e) {
             draw();
         }
         break;
+    case "U+0041": // A
+        if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.altGraphKey && !e.metaKey) {
+            // Ctrl-A - select all objects!
+            selectedObjects = [];
+            for (var i = objects.length-1; i >= 0 ; i--) {
+                selectedObjects.push(objects[i].id);
+            }
+            e.preventDefault();
+            draw();
+        } else {
+            // do nothing..?
+        }
     }
 
 }
@@ -182,6 +194,7 @@ function draw() {
     }
 
     counterElement.innerHTML = objects.length;
+    nextIdElement.innerHTML = newObjectId;
 }
 
 function drawObject(object) {
@@ -207,7 +220,7 @@ function drawObject(object) {
     }
 }
 
-function init(canvas, counter) {
+function init(canvas, counter, nextId) {
     // check if canvas already exists in the html document, and create one if not
     if (!canvas) {
         canvas = document.createElement("canvas");
@@ -240,6 +253,13 @@ function init(canvas, counter) {
     }
     counterElement = counter;
 
+    // check if a 'next id' already exists in the html document, and create one if not
+    if (!nextId) {
+        nextId = document.createElement("p");
+	    document.body.appendChild(nextId);
+    }
+    nextIdElement = nextId;
+
     // initialise out list of objects
     objects = [];
     selectedObjects = [];
@@ -253,12 +273,25 @@ function init(canvas, counter) {
     draw();
 }
  </script>
+ <title>Canvas 4</title>
 </head>
 <body>
- <h1>Canvas Development #3</h1>
- <p>Click anywhere in the square to draw a dot.  Then click on it/them to select and/or deselect, and press backsapce/delete to delete your selection!</p>
+ <h1>Canvas Development #4</h1>
+ <p>Click anywhere in the square to draw a dot!</p>
+ <div style="float: left; height: 320px; width: 315px; overflow: auto;">
+  <!-- use "overflow: scroll;" to make scroll bars always visible -->
+  <!-- It looks like, in Chrome on my Chromebook, the width of the parent div needs to be at least 15px greater than the canvas, and the height at least 20px greater, for the scroll bars to deactivate -->
+  <canvas id="myCanvas" width="100" height="100"></canvas>
+ </div>
+ <p>Number of objects: <span id="counter">-1</span><br />
+    Next unique object id: <span id="nextId">-1</span><br />
+    Click on circles to select and/or deselect, and press backsapce/delete to delete your selection!<br />
+    (note: if nothing is selected, then backspace will do it's default action, which is to go to the previous page in your browser's history...)<br />
+    (also note: the canvas needs to have the input focus (shown by a blue halo) to catch any keyboard events)<br />
+    Ctrl-A will select all circles.
+ </p>
  <script>
-   init(null, null);
+   init(document.getElementById('myCanvas'), document.getElementById('counter'), document.getElementById('nextId'));
  </script>
 </body>
 </html>

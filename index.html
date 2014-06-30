@@ -12,11 +12,34 @@
     var canvasElement;
     var drawingContext;
     var counterElement;
-    var circles;
+    var objects;
+    var newObjectId = 0;
+    var selectedObjects;
 
 function Position(x, y) {
     this.x = x;
     this.y = y;
+}
+
+function Object(type, x, y, width, height, colour, line_width, line_colour) {
+    // deal with default values for any missing arguments...
+    // (borrowed from here: http://stackoverflow.com/a/9363769)
+    switch (arguments.length) {
+        case 3:  width = 10;
+        case 4:  height = 10;
+        case 5:  colour="#fff";
+        case 6:  line_width=3;
+        case 7:  line_colour="#777";
+    }
+    this.type = type;
+    this.id = newObjectId++;
+    this.x = x;
+    this.y = y;
+    this.radius = this.width = width;
+    this.height = height;
+    this.colour = colour;
+    this.line_width = line_width;
+    this.line_colour = line_colour;
 }
 
 function getCursorPosition(e) {
@@ -40,54 +63,101 @@ function getCursorPosition(e) {
 function canvasOnClick(e) {
     var pos = getCursorPosition(e);
 
-    // try to work out if we have clicked on an existing circle or not...
-    var this_circle = -1
-    for (var i = circles.length-1; i >= 0 ; i--) {
-        var x2 = Math.pow(circles[i].x - pos.x,2);
-        var y2 = Math.pow(circles[i].y - pos.y,2);
-        var r = Math.sqrt(x2 + y2);
-        if ( (Math.pow(circles[i].x - pos.x,2) + Math.pow(circles[i].y - pos.y,2)) <= Math.pow(10,2) ) {
-          this_circle = i;
-          break
-        }
-    }
+    // try to work out if we have clicked on an existing object or not...
+    var this_object = which_object(pos)
 
-    if (this_circle == -1) {
-        // add a new circle to our list...
-        circles.push(pos);
+    if (this_object == -1) {
+        // we've clicked in empty space...
+        if (selectedObjects.length > 0) {
+            // one or more objects currently selected - unselect everything
+            selectedObjects = [];
+        } else {
+            // nothing currently selected - add a new circle to our list, where we clicked...
+            obj = new Object("circle", pos.x, pos.y, 10+Math.floor(Math.random()*11));
+            // add it to the end of the list, and update this_object to point at it
+            // (this is mainly for the benefit of the call to setCursor below, and rather assumes that we've inserted our new object somewhere underneath the mouse cursor...)
+            this_object = objects.push(obj) - 1;
+        }
     } else {
-        // remove the circle from our list...
-        circles.splice (this_circle, 1);
+        // we've clicked on an object...
+        
+        // remove the object from our list...
+        // objects.splice(this_object, 1);
+        
+        // is this object already selected..?
+        var selectedIndex = selectedObjects.indexOf(objects[this_object].id);
+        if (selectedIndex == -1) {
+            // no - add it to the list!
+            selectedObjects.push(objects[this_object].id);
+        } else {
+            // yes - remove it from the list!
+            selectedObjects.splice(selectedIndex, 1);
+        }
     }
   
     // update canvas
     draw();
     // update mouse pointer
-    canvasMouseMove(e);
+    setCursor(this_object);
+}
+
+function which_object(pos) {
+    for (var i = objects.length-1; i >= 0 ; i--) {
+        switch(objects[i].type) {
+        case "circle":
+            // var x2 = Math.pow(objects[i].x - pos.x,2);
+            // var y2 = Math.pow(objects[i].y - pos.y,2);
+            // var r = Math.sqrt(x2 + y2);
+            if ( (Math.pow(objects[i].x - pos.x,2) + Math.pow(objects[i].y - pos.y,2)) <= Math.pow(objects[i].radius,2) ) return i;
+            break;
+        }
+    }
+    return -1;
 }
 
 function canvasMouseMove(e) {
     var pos = getCursorPosition(e);
 
-    // try to work out if we are over an existing circle or not...
-    var this_circle = -1
-    for (var i = circles.length-1; i >= 0 ; i--) {
-        var x2 = Math.pow(circles[i].x - pos.x,2);
-        var y2 = Math.pow(circles[i].y - pos.y,2);
-        var r = Math.sqrt(x2 + y2);
-        if ( (Math.pow(circles[i].x - pos.x,2) + Math.pow(circles[i].y - pos.y,2)) <= Math.pow(10,2) ) {
-          this_circle = i;
-          break
-        }
-    }
+    // try to work out if we are over an existing object or not...
+    setCursor(which_object(pos));
+}
 
-    if (this_circle == -1) {
-        // not over an existing circle
+function setCursor(obj) {
+    if (obj == -1) {
+        // not over any existing objects
 		canvas.style.cursor = "default";
     } else {
-        // over an existing circle
-		canvas.style.cursor = "pointer";
+        // over an object
+        switch(objects[obj].type) {
+        case "circle":
+    		canvas.style.cursor = "pointer";
+            break;
+        default:
+    		canvas.style.cursor = "default";
+        }
     }
+}
+
+function bodyKeyDown(e) {
+    // if we want to prevent the Backspace button from moving us to the previous page in the browser history, then we need to catch the KeyDown event (for e.keyIdentifier = "U+0008") and run e.preventDefault()
+    // - the move to the previous page normally happen on the key down event, so if we wait for the key up event it'll be too late!.. (in Chrome, on my Chromebook, at least...)
+    switch (e.keyIdentifier) {
+    case "U+007F": // Delete (alt-backspace)
+    case "U+0008": // Backspace
+        if (selectedObjects.length > 0) {
+            // one or more objects selected - delete them!
+            for (var i = objects.length-1; i >= 0 ; i--) {
+                if (selectedObjects.indexOf(objects[i].id) >= 0) {
+                    objects.splice(i, 1);
+                }
+            }
+            selectedObjects = [];
+            e.preventDefault();
+            draw();
+        }
+        break;
+    }
+
 }
 
 function draw() {
@@ -96,35 +166,45 @@ function draw() {
 
     // draw our background
     var gradient = drawingContext.createLinearGradient(0, 0, canvasWidth, canvasHeight);
-    // gradient.addColorStop(0, "#d0d0d0");
-    // gradient.addColorStop(1, "#fbfbfb");
-    gradient.addColorStop(0, "#ff0000");
-    gradient.addColorStop(0.25, "#ffff00");
-    gradient.addColorStop(0.5, "#00ff00");
-    gradient.addColorStop(0.75, "#00ffff");
-    gradient.addColorStop(1, "#0000ff");
+    gradient.addColorStop(0, "#d0d0d0");
+    gradient.addColorStop(1, "#fbfbfb");
+    // gradient.addColorStop(0, "#ff0000");
+    // gradient.addColorStop(0.25, "#ffff00");
+    // gradient.addColorStop(0.5, "#00ff00");
+    // gradient.addColorStop(0.75, "#00ffff");
+    // gradient.addColorStop(1, "#0000ff");
     drawingContext.fillStyle = gradient;
     // drawingContext.fillStyle = "#eee";
     drawingContext.fillRect(0, 0, canvasWidth, canvasHeight)
 
-    for (var i = 0; i < circles.length; i++) {
-	    drawCircle(circles[i]);
+    for (var i = 0; i < objects.length; i++) {
+	    drawObject(objects[i]);
     }
 
-    counterElement.innerHTML = circles.length;
+    counterElement.innerHTML = objects.length;
 }
 
-function drawCircle(circle) {
-    drawingContext.beginPath();
-    drawingContext.arc(circle.x, circle.y, 10, 0, Math.PI*2, false);
-    drawingContext.closePath();
-
-    drawingContext.fillStyle = "#fff";
-	drawingContext.fill();
-
-    drawingContext.strokeStyle = "#888";
-    drawingContext.lineWidth = 1
-    drawingContext.stroke();
+function drawObject(object) {
+    switch (object.type) {
+    case "circle":
+        drawingContext.beginPath();
+        drawingContext.arc(object.x, object.y, object.radius, 0, Math.PI*2, false);
+        drawingContext.closePath();
+        
+        drawingContext.fillStyle = object.colour;
+	    drawingContext.fill();
+        
+        if (selectedObjects.indexOf(object.id) == -1) {
+            // object not currently selected
+            drawingContext.strokeStyle = object.line_colour;
+        } else {
+            // object is selected
+            drawingContext.strokeStyle = "#ff0000";
+        }
+        drawingContext.lineWidth = object.line_width;
+        drawingContext.stroke();
+        break;
+    }
 }
 
 function init(canvas, counter) {
@@ -138,6 +218,7 @@ function init(canvas, counter) {
     // set the height and width of out canvas
     canvasElement.width = canvasWidth;
     canvasElement.height = canvasHeight;
+    canvasElement.tabIndex = 1;
     // get the drawign context for the canvas
     drawingContext = canvasElement.getContext("2d");
 
@@ -145,20 +226,27 @@ function init(canvas, counter) {
     canvasElement.addEventListener("click", canvasOnClick, false);
     // ... and for mouse moves
     canvasElement.addEventListener("mousemove", canvasMouseMove, false);
+    // ... and for key-down events
+    // note: the canvas element doesn't take the input focus when clicked on, so therefore it doesn't receive any key events
+    // document.body.addEventListener("keydown", bodyKeyDown, false);
+    // okay, if you give the canvas element a tabindex, then it can and will take the input focus!..
+    // (this information found here: http://stackoverflow.com/a/57332)
+    canvasElement.addEventListener("keydown", bodyKeyDown, false);
 
-    // check if our counter already exists in the html document, and create one is not
+    // check if a counter already exists in the html document, and create one if not
     if (!counter) {
         counter = document.createElement("p");
 	    document.body.appendChild(counter);
     }
     counterElement = counter;
 
-    // initialise out list of circles
-    circles = [];
+    // initialise out list of objects
+    objects = [];
+    selectedObjects = [];
   
     // set up a bunch of random circles...
     for (var i = 0; i < 0; i++) {
-	    circles.push(new Position(Math.floor(Math.random() * canvasWidth), Math.floor(Math.random() * canvasHeight) ));
+	    objects.push(new Position(Math.floor(Math.random() * canvasWidth), Math.floor(Math.random() * canvasHeight) ));
     }
   
     // do an initial drawing of our (blank) canvas
@@ -167,8 +255,8 @@ function init(canvas, counter) {
  </script>
 </head>
 <body>
- <h1>Canvas Experiment #2</h1>
- <p>Click anywhere in the square to draw a dot - then click on it again to remove it!</p>
+ <h1>Canvas Development #3</h1>
+ <p>Click anywhere in the square to draw a dot.  Then click on it/them to select and/or deselect, and press backsapce/delete to delete your selection!</p>
  <script>
    init(null, null);
  </script>

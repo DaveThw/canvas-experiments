@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
  <meta charset="UTF-8">
- <title>Canvas 1</title>
+ <title>Canvas 2</title>
  <script>
 
     var gridSize = 10;
@@ -11,14 +11,16 @@
     
     var canvasElement;
     var drawingContext;
+    var counterElement;
+    var circles;
 
-function Mouse(x, y) {
+function Position(x, y) {
     this.x = x;
     this.y = y;
 }
 
 function getCursorPosition(e) {
-    /* returns Mouse with .x and .y properties */
+    /* returns Position with .x and .y properties */
     var x;
     var y;
     if (e.pageX != undefined && e.pageY != undefined) {
@@ -31,52 +33,144 @@ function getCursorPosition(e) {
     x -= canvasElement.offsetLeft;
     y -= canvasElement.offsetTop;
 
-    var mouse = new Mouse(x, y);
-    return mouse;
+    var pos = new Position(x, y);
+    return pos;
 }
 
 function canvasOnClick(e) {
-    var mouse = getCursorPosition(e);
+    var pos = getCursorPosition(e);
 
+    // try to work out if we have clicked on an existing circle or not...
+    var this_circle = -1
+    for (var i = circles.length-1; i >= 0 ; i--) {
+        var x2 = Math.pow(circles[i].x - pos.x,2);
+        var y2 = Math.pow(circles[i].y - pos.y,2);
+        var r = Math.sqrt(x2 + y2);
+        if ( (Math.pow(circles[i].x - pos.x,2) + Math.pow(circles[i].y - pos.y,2)) <= Math.pow(10,2) ) {
+          this_circle = i;
+          break
+        }
+    }
+
+    if (this_circle == -1) {
+        // add a new circle to our list...
+        circles.push(pos);
+    } else {
+        // remove the circle from our list...
+        circles.splice (this_circle, 1);
+    }
+  
+    // update canvas
+    draw();
+    // update mouse pointer
+    canvasMouseMove(e);
+}
+
+function canvasMouseMove(e) {
+    var pos = getCursorPosition(e);
+
+    // try to work out if we are over an existing circle or not...
+    var this_circle = -1
+    for (var i = circles.length-1; i >= 0 ; i--) {
+        var x2 = Math.pow(circles[i].x - pos.x,2);
+        var y2 = Math.pow(circles[i].y - pos.y,2);
+        var r = Math.sqrt(x2 + y2);
+        if ( (Math.pow(circles[i].x - pos.x,2) + Math.pow(circles[i].y - pos.y,2)) <= Math.pow(10,2) ) {
+          this_circle = i;
+          break
+        }
+    }
+
+    if (this_circle == -1) {
+        // not over an existing circle
+		canvas.style.cursor = "default";
+    } else {
+        // over an existing circle
+		canvas.style.cursor = "pointer";
+    }
+}
+
+function draw() {
+    // start from scratch - clear the whole canvas
+    drawingContext.clearRect(0, 0, canvasWidth, canvasHeight);
+
+    // draw our background
+    var gradient = drawingContext.createLinearGradient(0, 0, canvasWidth, canvasHeight);
+    // gradient.addColorStop(0, "#d0d0d0");
+    // gradient.addColorStop(1, "#fbfbfb");
+    gradient.addColorStop(0, "#ff0000");
+    gradient.addColorStop(0.25, "#ffff00");
+    gradient.addColorStop(0.5, "#00ff00");
+    gradient.addColorStop(0.75, "#00ffff");
+    gradient.addColorStop(1, "#0000ff");
+    drawingContext.fillStyle = gradient;
+    // drawingContext.fillStyle = "#eee";
+    drawingContext.fillRect(0, 0, canvasWidth, canvasHeight)
+
+    for (var i = 0; i < circles.length; i++) {
+	    drawCircle(circles[i]);
+    }
+
+    counterElement.innerHTML = circles.length;
+}
+
+function drawCircle(circle) {
     drawingContext.beginPath();
-    drawingContext.arc(mouse.x, mouse.y, 10, 0, Math.PI*2, false);
+    drawingContext.arc(circle.x, circle.y, 10, 0, Math.PI*2, false);
     drawingContext.closePath();
 
     drawingContext.fillStyle = "#fff";
 	drawingContext.fill();
 
     drawingContext.strokeStyle = "#888";
-    drawingContext.lineWidth = 3
+    drawingContext.lineWidth = 1
     drawingContext.stroke();
-
 }
 
-function init(canvas) {
+function init(canvas, counter) {
+    // check if canvas already exists in the html document, and create one if not
     if (!canvas) {
         canvas = document.createElement("canvas");
     	canvas.id = "canvas";
     	document.body.appendChild(canvas);
     }
     canvasElement = canvas;
+    // set the height and width of out canvas
     canvasElement.width = canvasWidth;
     canvasElement.height = canvasHeight;
-    canvasElement.addEventListener("click", canvasOnClick, false);
+    // get the drawign context for the canvas
     drawingContext = canvasElement.getContext("2d");
 
-    var gradient = drawingContext.createLinearGradient(0, 0, canvasWidth, canvasHeight);
-    gradient.addColorStop(0, "#d0d0d0");
-    gradient.addColorStop(1, "#fbfbfb");
-    drawingContext.fillStyle = gradient;
-    // drawingContext.fillStyle = "#eee";
-    drawingContext.fillRect(0, 0, canvasWidth, canvasHeight)
+    // listen out for mouse clicks
+    canvasElement.addEventListener("click", canvasOnClick, false);
+    // ... and for mouse moves
+    canvasElement.addEventListener("mousemove", canvasMouseMove, false);
+
+    // check if our counter already exists in the html document, and create one is not
+    if (!counter) {
+        counter = document.createElement("p");
+	    document.body.appendChild(counter);
+    }
+    counterElement = counter;
+
+    // initialise out list of circles
+    circles = [];
+  
+    // set up a bunch of random circles...
+    for (var i = 0; i < 0; i++) {
+	    circles.push(new Position(Math.floor(Math.random() * canvasWidth), Math.floor(Math.random() * canvasHeight) ));
+    }
+  
+    // do an initial drawing of our (blank) canvas
+    draw();
 }
  </script>
 </head>
 <body>
- <h1>Canvas Experiment #1</h1>
- <p>Click anywhere in the grey square to draw a dot!</p>
+ <h1>Canvas Experiment #2</h1>
+ <p>Click anywhere in the square to draw a dot - then click on it again to remove it!</p>
  <script>
-   init(null);
+   init(null, null);
  </script>
 </body>
 </html>

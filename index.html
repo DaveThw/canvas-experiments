@@ -4,6 +4,8 @@
  <meta charset="UTF-8">
  <script>
 
+//3456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 1234567890
+
     // default values
     var gridSize = 10;
     var canvasWidth = 300;
@@ -14,10 +16,85 @@
     var drawingContext;
     var counterElement;
     var nextIdElement;
-    var items;
-    var newItemId = 0;
-    var selectedItems;
+    var items = [];
+    // I use...
+    // items[index] to get at a specific item
+    // (and items[index].??? to get at that items properties...)
+    // items.push(item) to add an item - use items.add(item) instead
+    // items.splice(index, 1) to remove an item
+    // items.length to get number of items
+    // for loop to check through all items
+    //   note, we should use "for (var i = items.length; --i >= 0 ; ) {" as (apparently) it is the
+    //   fastest way of going through the array.  "for (var i in items) {" shouldn't really be used
+    //   on an array, as it can throw up additional 'methods' and things...  see here:
+    //   http://stackoverflow.com/questions/500504/why-is-using-for-in-with-array-iteration-such-a-bad-idea
+    // items = [] to intialise it, once - now moved from init function to initial declaration here
+    //
+    // Hmm.. okay, here's an idea - seperate the display order (or stacking order) out into a
+    // separate array of itemId's.  Then change items into an object, with the itemId being the key
+    // of each Item - these can be accessed as items[itemId].
+    // Pros - easier direct access to items by their itemId - will be useful in the future
+    //      - stacking order becomes an array of itemId's - with 'methods' for re-ordering items
+    // Cons - less easy to iterate through all items - using "for (var item in items) {" would also
+    //        pick up on other 'methods' and variables within the items object...
+    //      - when we delete an item we'd ought to update the stacking order array too (or does it
+    //        tidy itself up / fail gracefully when it finds an item that no longer exists..?)
+    //         - will need to think about this also for other things that might reference items by
+    //           their itemId - like a line linking two items together...
+    items.nextItemId = 0;
+    items.add = function(item) {
+        item.id = items.nextItemId++
+        return (items.push(item) - 1)
+    }
+    items.removeByIndex = function(index) {
+        return ( items.splice(index, 1) )
+    }
 
+    // 'selection' Object, for keeping track of which items are currently selected
+    var selection = new function() {
+        this.items = []
+        this.count = function() {
+            return this.items.length
+        }
+        this.any = function() {
+            return (this.items.length > 0)
+        }
+        this.clear = function() {
+            this.items = []
+            return true
+        }
+        this.add = function(item) {
+            index = this.items.indexOf(item.id)
+            if (index == -1) {
+                return (this.items.push(item.id) - 1)
+            } else {
+                // don't add item a second time!..
+                return index
+            }
+        }
+        this.solo = function(item) {
+            this.items = [item.id]
+            return 0
+        }
+        this.remove = function(item) {
+            index = this.items.indexOf(item.id)
+            if (index != -1) {
+                this.items.splice(index, 1)
+            }
+            return index
+        }
+        this.isSelected = function(item) {
+            return (this.items.indexOf(item.id) != -1)
+        }
+        this.addAll = function() {
+            this.items = []
+            // note: here we are looping through the global items array, not our local this.items
+            for (var i = items.length; --i >= 0 ; ) {
+                this.items.push(items[i].id)
+            }
+            return true
+        }
+    }
 
 /************************\
 * Shape item definitions *
@@ -34,7 +111,7 @@ function Rectangle(x, y, width, height, colour, line_width, line_colour) {
         case 6:  line_colour="#777";
     }
     // this.type = "rectangle";
-    this.id = newItemId++;
+    // this.id = newItemId++;
     this.x = x;
     this.y = y;
     this.width = width;
@@ -62,8 +139,9 @@ function Circle(x, y, width, height, colour, line_width, line_colour) {
         case 6:  line_colour="#777";
     }
     // this.type = "circle";
-    // could instead use items[i].constructor.name (which gives "Circle")
-    this.id = newItemId++;
+    //  could instead use items[i].constructor.name (which gives "Circle")
+    // this.id = newItemId++;
+    //  now the id is initialised by items.add()...
     this.x = x;
     this.y = y;
     this.radius = this.width = width;
@@ -77,12 +155,12 @@ function Circle(x, y, width, height, colour, line_width, line_colour) {
         switch (arguments.length) {
             case 0:  context = drawingContext;
             case 1:  colour = this.colour;
-            case 2:  if (selectedItems.indexOf(this.id) == -1) {
-                         // item not currently selected
-                         line_colour = this.line_colour;
-                     } else {
+            case 2:  if (selection.isSelected(this)) {
                          // item is selected
                          line_colour = "#ff0000";
+                     } else {
+                         // item not currently selected
+                         line_colour = this.line_colour;
                      }
         }
         
@@ -151,47 +229,90 @@ function getCursorPosition(e) {
 // Because the browser considers the canvas to be one element (it doesn't know about our 'items'),
 // we tend to receive most of these even if the mouse moves about a bit between the MouseDown and
 // MouseUp.  If the MouseDown happens outside the canvas, but the MouseUp happens within the canvas,
-// then we don't get a Click after the MouseUp.  Pressing Escape between MouseDown and MouseUp doesn't
-// appear to cancel the Click.  Doesn't seem to matter how long the pause between the MouseDown and
-// MouseUp - we still get a Click.
+// then we don't get a Click after the MouseUp.  Pressing Escape between MouseDown and MouseUp
+// doesn't appear to cancel the Click.  Doesn't seem to matter how long the pause between the
+// MouseDown and MouseUp - we still get a Click.
 
+
+function canvasMouseDown(e) {
+    // button detection needs improving, espeically if this is ever to become cross-browser compatible!.. see here:
+    // http://javascript.info/tutorial/mouse-events#getting-the-button-info-which-button
+    // or here:
+    // http://www.quirksmode.org/js/events_properties.html#button
+    if (e.button == 0) {
+        // normal left-click
+        
+        // prevent default actions - in particular for a double click (tends to highlight some text around the canvas!..)
+        e.preventDefault();
+        // unfortunately this also prevents the canvas from getting the focus when we click on it, which prevents us from receiving KeyDown events...
+        // see here for methods to work out if our convas has the focus at the moment (not straight forward!): http://www.whatwg.org/specs/web-apps/current-work/#focus-management-apis
+        if ( !(document.hasFocus() && (document.activeElement == canvasElement)) ) {
+            // Now, 'manually' pulling focus to the canvas like this seems to move the window around (which I don't really want), so...
+            // (window.scrollX and .scrollY don't seem to work..? although they should do! see here:
+            // https://developer.mozilla.org/en-US/docs/Web/API/window.scrollY
+            // and here:
+            // http://stackoverflow.com/questions/3791336/why-were-window-scrolly-and-window-scrollx-introduced )
+            // var scroll_x = window.pageXOffset;
+            // var scroll_y = window.pageYOffset;
+            // This is more robust across various browsers...
+            var scroll_x = (window.pageXOffset !== undefined) ? window.pageXOffset : (document.documentElement || document.body.parentNode || document.body).scrollLeft;
+            var scroll_y = (window.pageYOffset !== undefined) ? window.pageYOffset : (document.documentElement || document.body.parentNode || document.body).scrollTop;
+            canvasElement.focus();
+            window.scroll(scroll_x,scroll_y);
+        }
+        var pos = getCursorPosition(e);
+        
+        // try to work out if we have clicked on an existing item or not...
+        var this_item = which_item(pos)
+        
+        if (this_item == -1) {
+            // we've clicked in empty space...
+            if (selection.any()) {
+                // one or more items currently selected - unselect everything
+                selection.clear();
+            } else {
+                // nothing currently selected - do nothing for now..?
+            }
+        } else {
+            // we've clicked on an item...
+            
+            if (!e.shiftKey && !e.ctrlKey && !e.altKey && !e.altGraphKey && !e.metaKey) {
+                // straight forward click - select this item only
+                // ...unless this item is already selected (or part of a larger selection), in which case don't change anything...
+                if (!selection.isSelected(items[this_item])) {
+                    // not currently selected - select it!
+                    selection.solo(items[this_item])
+                }
+            } else if (e.shiftKey && !e.ctrlKey && !e.altKey && !e.altGraphKey && !e.metaKey) {
+                // shift-click - add this item to the selection (if not already selected!)
+                selection.add(items[this_item])
+            } else if (!e.shiftKey && e.ctrlKey && !e.altKey && !e.altGraphKey && !e.metaKey) {
+                // control-click - toggle this item 'selected' state
+                // is this item already selected..?
+                if (selection.isSelected(items[this_item])) {
+                    // yes - remove it from the list!
+                    selection.remove(items[this_item]);
+                } else {
+                    // no - add it to the list!
+                    selection.add(items[this_item]);
+                }
+            } else {
+                // some other form of click... do nothing..?
+            }
+        }
+  
+        // update canvas
+        draw();
+        // update mouse pointer
+        setCursorStyle(this_item,pos);
+    } else {
+        // right-click (or maybe middle-click?)
+    }
+}
 
 // This gets called just after a mouse up event - regardless of whether there's been any mouse movment... (on Chrome on my Chromebook)
 function canvasClick(e) {
-    var pos = getCursorPosition(e);
-
-    // try to work out if we have clicked on an existing item or not...
-    var this_item = which_item(pos)
-
-    if (this_item == -1) {
-        // we've clicked in empty space...
-        if (selectedItems.length > 0) {
-            // one or more items currently selected - unselect everything
-            selectedItems = [];
-        } else {
-            // nothing currently selected - do nothing for now..?
-        }
-    } else {
-        // we've clicked on an item...
-        
-        // delete the item from our list...
-        // items.splice(this_item, 1);
-        
-        // is this item already selected..?
-        var selectedIndex = selectedItems.indexOf(items[this_item].id);
-        if (selectedIndex == -1) {
-            // no - add it to the list!
-            selectedItems.push(items[this_item].id);
-        } else {
-            // yes - remove it from the list!
-            selectedItems.splice(selectedIndex, 1);
-        }
-    }
-  
-    // update canvas
-    draw();
-    // update mouse pointer
-    setCursorStyle(this_item,pos);
+    // currently, all the code that was here is now in MouseDown, above... 
 }
 
 // This gets called when the user double clicks with a mouse (or on a touch screen..?)
@@ -203,28 +324,16 @@ function canvasDoubleClick(e) {
     var this_item = which_item(pos)
 
     if (this_item == -1) {
-        // double click not on an item - add a new circle to our list, where we clicked...
-        it = new Circle(pos.x, pos.y, 10+Math.floor(Math.random()*11));
-        // add it to the end of the list, and update this_item to point at it
-        // (this is mainly for the benefit of the call to setCursor below, and rather assumes that we've inserted our new item somewhere underneath the mouse cursor...)
-        this_item = items.push(it) - 1;
+        // double click not on an item - add a new circle to our items list, where we clicked...
+        // add it to the list, and update this_item to point at it
+        // (updating this_item is mainly for the benefit of the call to setCursor below, and rather assumes that we've inserted our new item somewhere underneath the mouse cursor...)
+        this_item = items.add(new Circle(pos.x, pos.y, 10+Math.floor(Math.random()*11)));
     } else {
         // we've double clicked on an item...
-        // erm... do nothing for now..?
-
-        /*
-        // ensure this item is selected - is it already selected..?
-        var selectedIndex = selectedItems.indexOf(items[this_item].id);
-        if (selectedIndex == -1) {
-            // no - add it to the list!
-            selectedItems.push(items[this_item].id);
-        } else {
-            // yes - no need to do anything!
-        }
-        */
+        // erm... do nothing for now..? - nope!
         
         // select only this item
-        selectedItems = [items[this_item].id]
+        selection.solo(items[this_item])
     }
     
     // prevent default actions for a double click (tends to highlight some text around the canvas!..)
@@ -235,20 +344,6 @@ function canvasDoubleClick(e) {
     draw();
     // update mouse pointer
     setCursorStyle(this_item,pos);
-}
-
-function canvasMouseDown(e) {
-    // prevent default actions for a double click (tends to highlight some text around the canvas!..)
-    e.preventDefault();
-    // unfortunately this also prevents the canvas from getting the focus when we click on it, which prevents us from receiving KeyDown events...
-    // Now, 'manually' pulling focus to the canvas like this seems to move the window around (which I don't really want), so...
-    // (window.scrollX and .scrollY don't seem to work... although they should do! see here: https://developer.mozilla.org/en-US/docs/Web/API/window.scrollY and here: http://stackoverflow.com/questions/3791336/why-were-window-scrolly-and-window-scrollx-introduced )
-    // var scroll_x = window.pageXOffset;
-    // var scroll_y = window.pageYOffset;
-    var scroll_x = (window.pageXOffset !== undefined) ? window.pageXOffset : (document.documentElement || document.body.parentNode || document.body).scrollLeft;
-    var scroll_y = (window.pageYOffset !== undefined) ? window.pageYOffset : (document.documentElement || document.body.parentNode || document.body).scrollTop;
-    canvasElement.focus();
-    window.scroll(scroll_x,scroll_y);
 }
 
 function which_item(pos) {
@@ -291,14 +386,14 @@ function canvasKeyDown(e) {
     switch (e.keyIdentifier) {
     case "U+007F": // Delete (alt-backspace)
     case "U+0008": // Backspace
-        if (selectedItems.length > 0) {
+        if (selection.any()) {
             // one or more items selected - delete them!
-            for (var i = items.length-1; i >= 0 ; i--) {
-                if (selectedItems.indexOf(items[i].id) >= 0) {
-                    items.splice(i, 1);
+            for (var i = items.length; --i >= 0 ; ) {
+                if (selection.isSelected(items[i])) {
+                    items.removeByIndex(i);
                 }
             }
-            selectedItems = [];
+            selection.clear();
             e.preventDefault();
             draw();
         }
@@ -306,10 +401,7 @@ function canvasKeyDown(e) {
     case "U+0041": // A
         if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.altGraphKey && !e.metaKey) {
             // Ctrl-A - select all items!
-            selectedItems = [];
-            for (var i = items.length-1; i >= 0 ; i--) {
-                selectedItems.push(items[i].id);
-            }
+            selection.addAll();
             e.preventDefault();
             draw();
         } else {
@@ -342,7 +434,7 @@ function draw() {
     }
 
     counterElement.innerHTML = items.length;
-    nextIdElement.innerHTML = newItemId;
+    nextIdElement.innerHTML = items.nextItemId;
 }
 
 function init(canvas, counter, nextId) {
@@ -360,7 +452,7 @@ function init(canvas, counter, nextId) {
     // get the drawign context for the canvas
     drawingContext = canvasElement.getContext("2d");
 
-    // listen out for mouse clicks
+    // listen out for clicks
     canvasElement.addEventListener("click", canvasClick, false);
     // listen out for double-clicks
     canvasElement.addEventListener("dblclick", canvasDoubleClick, false);
@@ -389,23 +481,19 @@ function init(canvas, counter, nextId) {
     }
     nextIdElement = nextId;
 
-    // initialise our list of items
-    items = [];
-    selectedItems = [];
-  
     // set up a bunch of random circles...
     for (var i = 0; i < 0; i++) {
-        items.push(new Circle(Math.floor(Math.random() * canvasWidth), Math.floor(Math.random() * canvasHeight), 10+Math.floor(Math.random()*11)));
+        items.add(new Circle(Math.floor(Math.random() * canvasWidth), Math.floor(Math.random() * canvasHeight), 10+Math.floor(Math.random()*11)));
     }
   
     // do an initial drawing of our (blank?) canvas
     draw();
 }
  </script>
- <title>Canvas 5</title>
+ <title>Canvas 6</title>
 </head>
 <body>
- <h1>Canvas Development #5</h1>
+ <h1>Canvas Development #6</h1>
  <p>Double-click anywhere in the square to draw a circle!</p>
  <div style="float: left; height: 320px; width: 315px; overflow: auto;">
   <!-- use "overflow: scroll;" to make scroll bars always visible -->
@@ -414,11 +502,12 @@ function init(canvas, counter, nextId) {
  </div>
  <p>Number of items: <span id="counter">-1</span><br />
     Next unique item id: <span id="nextId">-1</span><br />
-    Click on circles to select and/or deselect, and press backsapce/delete to delete your selection!<br />
+    Click on a circle to select it, shift-click to add to your selection, or control-click to toggle selection.<br />
+    Press backsapce/delete to delete selected circles!<br />
     (note: if nothing is selected, then backspace will do it's default action, which is to go to the previous page in your browser's history...)<br />
     (also note: the canvas needs to have the input focus (shown by a blue halo) to catch any keyboard events)<br />
     Ctrl-A will select all circles.<br />
-    Internally, started change towards a more 'object-oriented' approach...<br />
+    Internally, started change towards a more 'object-oriented' approach... (circles are more object-y; so is the selection list; and the list of items)<br />
     Double-clicking now supported - double click to create a circle, and double-click on a circle to select only it!
  </p>
  <script>

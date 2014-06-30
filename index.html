@@ -4,35 +4,66 @@
  <meta charset="UTF-8">
  <script>
 
+    // default values
     var gridSize = 10;
     var canvasWidth = 300;
     var canvasHeight = 300;
     
+    // global variables
     var canvasElement;
     var drawingContext;
     var counterElement;
     var nextIdElement;
-    var objects;
-    var newObjectId = 0;
-    var selectedObjects;
+    var items;
+    var newItemId = 0;
+    var selectedItems;
 
-function Position(x, y) {
-    this.x = x;
-    this.y = y;
-}
 
-function Object(type, x, y, width, height, colour, line_width, line_colour) {
+/************************\
+* Shape item definitions *
+\************************/
+
+function Rectangle(x, y, width, height, colour, line_width, line_colour) {
     // deal with default values for any missing arguments...
     // (borrowed from here: http://stackoverflow.com/a/9363769)
     switch (arguments.length) {
-        case 3:  width = 10;
-        case 4:  height = 10;
-        case 5:  colour="#fff";
-        case 6:  line_width=3;
-        case 7:  line_colour="#777";
+        case 2:  width = 10;
+        case 3:  height = 10;
+        case 4:  colour="#fff";
+        case 5:  line_width=3;
+        case 6:  line_colour="#777";
     }
-    this.type = type;
-    this.id = newObjectId++;
+    // this.type = "rectangle";
+    this.id = newItemId++;
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+    this.colour = colour;
+    this.line_width = line_width;
+    this.line_colour = line_colour;
+
+    this.draw = function (context, colour) {
+        switch (arguments.length) {
+            case 0:  context = drawingContext;
+            case 1:  colour = this.colour;
+        }
+    }
+}
+
+function Circle(x, y, width, height, colour, line_width, line_colour) {
+    // deal with default values for any missing arguments...
+    // (borrowed from here: http://stackoverflow.com/a/9363769)
+    switch (arguments.length) {
+        case 2:  width = 10;
+        case 3:  height = 10;
+        case 4:  colour="#fff";
+        case 5:  line_width=3;
+        case 6:  line_colour="#777";
+    }
+    // this.type = "circle";
+    // could instead use items[i].constructor.name (which gives "Circle")
+    this.id = newItemId++;
     this.x = x;
     this.y = y;
     this.radius = this.width = width;
@@ -40,6 +71,47 @@ function Object(type, x, y, width, height, colour, line_width, line_colour) {
     this.colour = colour;
     this.line_width = line_width;
     this.line_colour = line_colour;
+    this.cursorStyle = "pointer";
+
+    this.draw = function (context, colour, line_colour) {
+        switch (arguments.length) {
+            case 0:  context = drawingContext;
+            case 1:  colour = this.colour;
+            case 2:  if (selectedItems.indexOf(this.id) == -1) {
+                         // item not currently selected
+                         line_colour = this.line_colour;
+                     } else {
+                         // item is selected
+                         line_colour = "#ff0000";
+                     }
+        }
+        
+        context.beginPath();
+        context.arc(this.x, this.y, this.radius, 0, Math.PI*2, false);
+        context.closePath();
+        
+        context.fillStyle = colour;
+	    context.fill();
+        
+        context.strokeStyle = line_colour;
+        context.lineWidth = this.line_width;
+        context.stroke();
+    }
+    
+    this.mouseOver = function(pos) {
+        // var x2 = Math.pow(this.x - pos.x,2);
+        // var y2 = Math.pow(this.y - pos.y,2);
+        // var r = Math.sqrt(x2 + y2);
+        return ( (Math.pow(this.x - pos.x,2) + Math.pow(this.y - pos.y,2)) <= Math.pow(this.radius,2) );
+    }
+}
+
+
+
+
+function Position(x, y) {
+    this.x = x;
+    this.y = y;
 }
 
 function getCursorPosition(e) {
@@ -60,57 +132,128 @@ function getCursorPosition(e) {
     return pos;
 }
 
-function canvasOnClick(e) {
+
+
+/****************\
+* Event handlers *
+\****************/
+
+// Mouse Click Events sequence:
+// 1) MouseDown
+// 2) MouseUp
+// 3) Click
+//
+// 4) MouseDown
+// 5) MouseUp
+// 6) Click
+// 7) DoubleClick
+//
+// Because the browser considers the canvas to be one element (it doesn't know about our 'items'),
+// we tend to receive most of these even if the mouse moves about a bit between the MouseDown and
+// MouseUp.  If the MouseDown happens outside the canvas, but the MouseUp happens within the canvas,
+// then we don't get a Click after the MouseUp.  Pressing Escape between MouseDown and MouseUp doesn't
+// appear to cancel the Click.  Doesn't seem to matter how long the pause between the MouseDown and
+// MouseUp - we still get a Click.
+
+
+// This gets called just after a mouse up event - regardless of whether there's been any mouse movment... (on Chrome on my Chromebook)
+function canvasClick(e) {
     var pos = getCursorPosition(e);
 
-    // try to work out if we have clicked on an existing object or not...
-    var this_object = which_object(pos)
+    // try to work out if we have clicked on an existing item or not...
+    var this_item = which_item(pos)
 
-    if (this_object == -1) {
+    if (this_item == -1) {
         // we've clicked in empty space...
-        if (selectedObjects.length > 0) {
-            // one or more objects currently selected - unselect everything
-            selectedObjects = [];
+        if (selectedItems.length > 0) {
+            // one or more items currently selected - unselect everything
+            selectedItems = [];
         } else {
-            // nothing currently selected - add a new circle to our list, where we clicked...
-            obj = new Object("circle", pos.x, pos.y, 10+Math.floor(Math.random()*11));
-            // add it to the end of the list, and update this_object to point at it
-            // (this is mainly for the benefit of the call to setCursor below, and rather assumes that we've inserted our new object somewhere underneath the mouse cursor...)
-            this_object = objects.push(obj) - 1;
+            // nothing currently selected - do nothing for now..?
         }
     } else {
-        // we've clicked on an object...
+        // we've clicked on an item...
         
-        // remove the object from our list...
-        // objects.splice(this_object, 1);
+        // delete the item from our list...
+        // items.splice(this_item, 1);
         
-        // is this object already selected..?
-        var selectedIndex = selectedObjects.indexOf(objects[this_object].id);
+        // is this item already selected..?
+        var selectedIndex = selectedItems.indexOf(items[this_item].id);
         if (selectedIndex == -1) {
             // no - add it to the list!
-            selectedObjects.push(objects[this_object].id);
+            selectedItems.push(items[this_item].id);
         } else {
             // yes - remove it from the list!
-            selectedObjects.splice(selectedIndex, 1);
+            selectedItems.splice(selectedIndex, 1);
         }
     }
   
     // update canvas
     draw();
     // update mouse pointer
-    setCursor(this_object);
+    setCursorStyle(this_item,pos);
 }
 
-function which_object(pos) {
-    for (var i = objects.length-1; i >= 0 ; i--) {
-        switch(objects[i].type) {
-        case "circle":
-            // var x2 = Math.pow(objects[i].x - pos.x,2);
-            // var y2 = Math.pow(objects[i].y - pos.y,2);
-            // var r = Math.sqrt(x2 + y2);
-            if ( (Math.pow(objects[i].x - pos.x,2) + Math.pow(objects[i].y - pos.y,2)) <= Math.pow(objects[i].radius,2) ) return i;
-            break;
+// This gets called when the user double clicks with a mouse (or on a touch screen..?)
+// When the user double clicks with a mouse, we receive one Click event for the first click, then a second Click event followed by a DoubleClick event for the second click
+function canvasDoubleClick(e) {
+    var pos = getCursorPosition(e);
+
+    // try to work out if we have clicked on an existing item or not...
+    var this_item = which_item(pos)
+
+    if (this_item == -1) {
+        // double click not on an item - add a new circle to our list, where we clicked...
+        it = new Circle(pos.x, pos.y, 10+Math.floor(Math.random()*11));
+        // add it to the end of the list, and update this_item to point at it
+        // (this is mainly for the benefit of the call to setCursor below, and rather assumes that we've inserted our new item somewhere underneath the mouse cursor...)
+        this_item = items.push(it) - 1;
+    } else {
+        // we've double clicked on an item...
+        // erm... do nothing for now..?
+
+        /*
+        // ensure this item is selected - is it already selected..?
+        var selectedIndex = selectedItems.indexOf(items[this_item].id);
+        if (selectedIndex == -1) {
+            // no - add it to the list!
+            selectedItems.push(items[this_item].id);
+        } else {
+            // yes - no need to do anything!
         }
+        */
+        
+        // select only this item
+        selectedItems = [items[this_item].id]
+    }
+    
+    // prevent default actions for a double click (tends to highlight some text around the canvas!..)
+    e.preventDefault();
+    // doesn't seem to be working..?
+
+    // update canvas
+    draw();
+    // update mouse pointer
+    setCursorStyle(this_item,pos);
+}
+
+function canvasMouseDown(e) {
+    // prevent default actions for a double click (tends to highlight some text around the canvas!..)
+    e.preventDefault();
+    // unfortunately this also prevents the canvas from getting the focus when we click on it, which prevents us from receiving KeyDown events...
+    // Now, 'manually' pulling focus to the canvas like this seems to move the window around (which I don't really want), so...
+    // (window.scrollX and .scrollY don't seem to work... although they should do! see here: https://developer.mozilla.org/en-US/docs/Web/API/window.scrollY and here: http://stackoverflow.com/questions/3791336/why-were-window-scrolly-and-window-scrollx-introduced )
+    // var scroll_x = window.pageXOffset;
+    // var scroll_y = window.pageYOffset;
+    var scroll_x = (window.pageXOffset !== undefined) ? window.pageXOffset : (document.documentElement || document.body.parentNode || document.body).scrollLeft;
+    var scroll_y = (window.pageYOffset !== undefined) ? window.pageYOffset : (document.documentElement || document.body.parentNode || document.body).scrollTop;
+    canvasElement.focus();
+    window.scroll(scroll_x,scroll_y);
+}
+
+function which_item(pos) {
+    for (var i = items.length-1; i >= 0 ; i--) {
+        if (items[i].mouseOver(pos)) return i;
     }
     return -1;
 }
@@ -118,50 +261,54 @@ function which_object(pos) {
 function canvasMouseMove(e) {
     var pos = getCursorPosition(e);
 
-    // try to work out if we are over an existing object or not...
-    setCursor(which_object(pos));
+    // try to work out if we are over an existing item or not...
+    setCursorStyle(which_item(pos), pos);
 }
 
-function setCursor(obj) {
-    if (obj == -1) {
-        // not over any existing objects
+function setCursorStyle(it, pos) {
+    if (it == -1) {
+        // not over any existing items
 		canvasElement.style.cursor = "default";
     } else {
-        // over an object
-        switch(objects[obj].type) {
-        case "circle":
-    		canvasElement.style.cursor = "pointer";
-            break;
-        default:
-    		canvasElement.style.cursor = "default";
+        // over an item
+        var cursor;
+        try {
+            cursor = items[it].getCursorStyle(pos);
+        } catch(err) {
+            // most probably wind up here because this item doesn't have a getCursor method defined...
+            // in which case, this isn't strictly necessary.  But I'm leaving it here in case getCursor throws some kind of error itself (which I guess could leave cursor as, say, null or "" or "ldkfhgld"..?)
+            cursor = undefined;
         }
+        if (cursor === undefined) cursor = items[it].cursorStyle;
+        if (cursor === undefined) cursor = "default";
+        canvasElement.style.cursor = cursor;
     }
 }
 
-function bodyKeyDown(e) {
+function canvasKeyDown(e) {
     // if we want to prevent the Backspace button from moving us to the previous page in the browser history, then we need to catch the KeyDown event (for e.keyIdentifier = "U+0008") and run e.preventDefault()
-    // - the move to the previous page normally happen on the key down event, so if we wait for the key up event it'll be too late!.. (in Chrome, on my Chromebook, at least...)
+    // - the move to the previous page normally happens on the key down event, so if we wait for the key up event it'll be too late!.. (in Chrome, on my Chromebook, at least...)
     switch (e.keyIdentifier) {
     case "U+007F": // Delete (alt-backspace)
     case "U+0008": // Backspace
-        if (selectedObjects.length > 0) {
-            // one or more objects selected - delete them!
-            for (var i = objects.length-1; i >= 0 ; i--) {
-                if (selectedObjects.indexOf(objects[i].id) >= 0) {
-                    objects.splice(i, 1);
+        if (selectedItems.length > 0) {
+            // one or more items selected - delete them!
+            for (var i = items.length-1; i >= 0 ; i--) {
+                if (selectedItems.indexOf(items[i].id) >= 0) {
+                    items.splice(i, 1);
                 }
             }
-            selectedObjects = [];
+            selectedItems = [];
             e.preventDefault();
             draw();
         }
         break;
     case "U+0041": // A
         if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.altGraphKey && !e.metaKey) {
-            // Ctrl-A - select all objects!
-            selectedObjects = [];
-            for (var i = objects.length-1; i >= 0 ; i--) {
-                selectedObjects.push(objects[i].id);
+            // Ctrl-A - select all items!
+            selectedItems = [];
+            for (var i = items.length-1; i >= 0 ; i--) {
+                selectedItems.push(items[i].id);
             }
             e.preventDefault();
             draw();
@@ -189,35 +336,13 @@ function draw() {
     // drawingContext.fillStyle = "#eee";
     drawingContext.fillRect(0, 0, canvasWidth, canvasHeight)
 
-    for (var i = 0; i < objects.length; i++) {
-	    drawObject(objects[i]);
+    for (var i = 0; i < items.length; i++) {
+	    // drawItem(items[i]);
+        items[i].draw();
     }
 
-    counterElement.innerHTML = objects.length;
-    nextIdElement.innerHTML = newObjectId;
-}
-
-function drawObject(object) {
-    switch (object.type) {
-    case "circle":
-        drawingContext.beginPath();
-        drawingContext.arc(object.x, object.y, object.radius, 0, Math.PI*2, false);
-        drawingContext.closePath();
-        
-        drawingContext.fillStyle = object.colour;
-	    drawingContext.fill();
-        
-        if (selectedObjects.indexOf(object.id) == -1) {
-            // object not currently selected
-            drawingContext.strokeStyle = object.line_colour;
-        } else {
-            // object is selected
-            drawingContext.strokeStyle = "#ff0000";
-        }
-        drawingContext.lineWidth = object.line_width;
-        drawingContext.stroke();
-        break;
-    }
+    counterElement.innerHTML = items.length;
+    nextIdElement.innerHTML = newItemId;
 }
 
 function init(canvas, counter, nextId) {
@@ -236,7 +361,11 @@ function init(canvas, counter, nextId) {
     drawingContext = canvasElement.getContext("2d");
 
     // listen out for mouse clicks
-    canvasElement.addEventListener("click", canvasOnClick, false);
+    canvasElement.addEventListener("click", canvasClick, false);
+    // listen out for double-clicks
+    canvasElement.addEventListener("dblclick", canvasDoubleClick, false);
+    // listen out for select events (like double-clicking...)
+    canvasElement.addEventListener("mousedown", canvasMouseDown, false);
     // ... and for mouse moves
     canvasElement.addEventListener("mousemove", canvasMouseMove, false);
     // ... and for key-down events
@@ -244,7 +373,7 @@ function init(canvas, counter, nextId) {
     // document.body.addEventListener("keydown", bodyKeyDown, false);
     // okay, if you give the canvas element a tabindex, then it can and will take the input focus!..
     // (this information found here: http://stackoverflow.com/a/57332)
-    canvasElement.addEventListener("keydown", bodyKeyDown, false);
+    canvasElement.addEventListener("keydown", canvasKeyDown, false);
 
     // check if a counter already exists in the html document, and create one if not
     if (!counter) {
@@ -260,35 +389,37 @@ function init(canvas, counter, nextId) {
     }
     nextIdElement = nextId;
 
-    // initialise out list of objects
-    objects = [];
-    selectedObjects = [];
+    // initialise our list of items
+    items = [];
+    selectedItems = [];
   
     // set up a bunch of random circles...
     for (var i = 0; i < 0; i++) {
-	    objects.push(new Position(Math.floor(Math.random() * canvasWidth), Math.floor(Math.random() * canvasHeight) ));
+        items.push(new Circle(Math.floor(Math.random() * canvasWidth), Math.floor(Math.random() * canvasHeight), 10+Math.floor(Math.random()*11)));
     }
   
-    // do an initial drawing of our (blank) canvas
+    // do an initial drawing of our (blank?) canvas
     draw();
 }
  </script>
- <title>Canvas 4</title>
+ <title>Canvas 5</title>
 </head>
 <body>
- <h1>Canvas Development #4</h1>
- <p>Click anywhere in the square to draw a dot!</p>
+ <h1>Canvas Development #5</h1>
+ <p>Double-click anywhere in the square to draw a circle!</p>
  <div style="float: left; height: 320px; width: 315px; overflow: auto;">
   <!-- use "overflow: scroll;" to make scroll bars always visible -->
   <!-- It looks like, in Chrome on my Chromebook, the width of the parent div needs to be at least 15px greater than the canvas, and the height at least 20px greater, for the scroll bars to deactivate -->
   <canvas id="myCanvas" width="100" height="100"></canvas>
  </div>
- <p>Number of objects: <span id="counter">-1</span><br />
-    Next unique object id: <span id="nextId">-1</span><br />
+ <p>Number of items: <span id="counter">-1</span><br />
+    Next unique item id: <span id="nextId">-1</span><br />
     Click on circles to select and/or deselect, and press backsapce/delete to delete your selection!<br />
     (note: if nothing is selected, then backspace will do it's default action, which is to go to the previous page in your browser's history...)<br />
     (also note: the canvas needs to have the input focus (shown by a blue halo) to catch any keyboard events)<br />
-    Ctrl-A will select all circles.
+    Ctrl-A will select all circles.<br />
+    Internally, started change towards a more 'object-oriented' approach...<br />
+    Double-clicking now supported - double click to create a circle, and double-click on a circle to select only it!
  </p>
  <script>
    init(document.getElementById('myCanvas'), document.getElementById('counter'), document.getElementById('nextId'));

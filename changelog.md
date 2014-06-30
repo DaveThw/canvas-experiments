@@ -1,11 +1,45 @@
 # Changelog
 
-## Canvas Development #3 - 1/6/2014
-- Click on an existing dots to select and/or deselect
-- Press backspace/delete to delete selected dots
-
-## Canvas Experiment #2 - 1/6/2014
-- Click on an existing dot to remove it
-
-## Canvas Experiment #1 - 1/6/2014
-- Click anywhere in the grey square to draw a dot!
+- [Canvas Development #9](https://github.com/DaveThw/canvas-experiments/blob/bbc7605776ff03e0505b82155f3eb309e8eb4481/index.html) - 27/6/2014
+    - Okay, big change - we no longer have a list of items.  Instead, where we'd like to keep track of an item, we just point at that item...  Item Ids are a thing of the past! (I think...)
+    - And, we now have `Group`s...
+    - Can now group items together (Ctrl-G), and ungroup them (Ctrl-U).
+    - Double-clicking on a group 'enters' the group so that individual items within it can be edited (moved) - pressing escape will then exit the group
+    - The stack of items is now more like a tree - individual items are nodes on the tree, and groups are branches.
+    - The stack is itself really just a group (although one that cannot (easily) be ungrouped or exited!..)
+    - `Group`s now do various things themselves, by recursivly checking each of their children - eg they draw themselves, by drawing each of their children.
+    - Things like working out if to draw an item as selected are a little more complicated - we need to check if this item is selected, or if a parent of this item is selected...
+        - More specifically, we need to check if this item, or one of it's ancestors, are a direct child of the 'current group' and if so whether that child of the current group is selected...
+    - The `Selection` object is now a child object of each `Group`, keeping track of which items *within that group* are selected.
+    - I've discovered things like `console.log()` and `debugger` commands, which are useful!
+    - Started work on `maxX()`, `maxY()`, etc for items (and groups) - should be useful in the future, but needs more work...
+    - Created a `Colour` object for storing (and manipulating) colours 
+- [Canvas Development #8](https://github.com/DaveThw/canvas-experiments/blob/77c64a4b19f0fc624d3163f27eaf62e65dae66bb/index.html) - 24/6/2014
+    - Finally!.. Added the ability to move a circle - or a selection of multiple circles! :-)
+    - Internally, created a `Mouse` object to remember where the mouse is - for key press events and the like.  This also meant I could tidy a few other bits up and move a couple of functions within the `Mouse` object.
+    - Internally, added a `selected` property to each item - I think this should speed a few things up, as we won't have to scan through the entire list of selected items to work out if something is selected - which we need to do every time we re-draw an item, so dragging (lots of) items around should be smoother...  Also used in `Item.isMouseOver`, to work out if we need to apply an offset to our known position.
+    - Added a `timings` array to try to time how long various bits of code are taking...
+    - Still not quite sure what the best way of preventing a double-click for selecting text outside the canvas is...
+    - Created a few functions to make it easier to work with prototypes and inheritance
+- [Canvas Development #7](https://github.com/DaveThw/canvas-experiments/blob/e28f1cd12df864fb58897a035515f40fcbd06c00/index.html) - 15/6/2014
+    - Internally separated out the stacking order from the list of items - hopefully a useful move in the future!..
+    - Also started making more use of prototypes... `Circle`s now inherit from a new `Item` type, and generic `Circle` functions are contained in the `Circle.prototype`, rather than in each `Circle` instance individually (I think this is an efficient move..?)
+    - Added a `This item id:` box to show us the item it of the item currently underneath the mouse.
+- [Canvas Development #6](https://github.com/DaveThw/canvas-experiments/blob/0aaae3b2661b97785f92b4349fce68b0320019a5/index.html) - 13/6/2014
+    - Click on a circle to select it, shift-click to add to your selection, or control-click to toggle selection.
+    - Internally, continued change towards a more 'object-oriented' approach... (`selection` list is more object-y; and so is the list of items)
+    - Changed from listening to `Click` events, to listening to `MouseDown` events
+- [Canvas Development #5](https://github.com/DaveThw/canvas-experiments/blob/0f6e3fd02cbd6b632b301a04395c1e51f626f0e8/index.html) - 11/6/2014
+    - Double-clicking now supported - double click to create a circle, and double-click on a circle to select only it!
+    - Internally, started change towards a more 'object-oriented' approach... (`Circle`s are more object-y) 
+- [Canvas Development #4](https://github.com/DaveThw/canvas-experiments/blob/6fd1a4b558f6a32ae82ea3cd897a780953f0e522/index.html) - 8/6/2014
+    - Ctrl-A will select all circles
+    - note: if nothing is selected, then backspace will do it's default action, which is to go to the previous page in your browser's history...
+    - also note: the canvas needs to have the input focus (shown by a blue halo) to catch any keyboard events
+- [Canvas Development #3](https://github.com/DaveThw/canvas-experiments/blob/458bf729ed0d6d5c84929aa07dd4dd0152f0f825/index.html) - 1/6/2014
+    - Click on any existing dots to select and/or deselect
+    - Press backspace/delete to delete selected dots
+- [Canvas Experiment #2](https://github.com/DaveThw/canvas-experiments/blob/ad9fc3aa4a76bc6d80f558a0074ee2af60d42248/index.html) - 1/6/2014
+    - Click on an existing dot to remove it
+- [Canvas Experiment #1](https://github.com/DaveThw/canvas-experiments/blob/867df3556dfebbfb31df5855779dcd8fe485e5c5/index.html) - 1/6/2014
+    - Click anywhere in the grey square to draw a dot!

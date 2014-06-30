@@ -11,19 +11,30 @@
     var canvasWidth = 300;
     var canvasHeight = 300;
     
-    // global variables
+    // references to items in the HTML DOM
     var canvasElement;
     var drawingContext;
     var counterElement;
     var nextIdElement;
-    var items = [];
+    var thisIdElement;
+    
+    // global variables
+    // 'items' Object, containing all our items, refernced by unique id numbers
+    var items = new function() {
     // I use...
     // items[index] to get at a specific item
-    // (and items[index].??? to get at that items properties...)
-    // items.push(item) to add an item - use items.add(item) instead
+    // (and items[index].xxx to get at that items properties...)
+    // items.push(item) to add an item
+    //   - change to use items.add(item) instead
     // items.splice(index, 1) to remove an item
+    //   - change to use items.remove(item) instead
     // items.length to get number of items
+    //   - change to use items.count() instead
     // for loop to check through all items
+    //   - mainly this is for drawing the items (so can loop through stacking order instead), or
+    //     working out if we are hovering over an item (loop through stacking order instead), or
+    //     selecting all items (could do this by looping through stacking order, althrough that's
+    //     less scemantically pleasing...)
     //   note, we should use "for (var i = items.length; --i >= 0 ; ) {" as (apparently) it is the
     //   fastest way of going through the array.  "for (var i in items) {" shouldn't really be used
     //   on an array, as it can throw up additional 'methods' and things...  see here:
@@ -41,64 +52,194 @@
     //        tidy itself up / fail gracefully when it finds an item that no longer exists..?)
     //         - will need to think about this also for other things that might reference items by
     //           their itemId - like a line linking two items together...
-    items.nextItemId = 0;
-    items.add = function(item) {
-        item.id = items.nextItemId++
-        return (items.push(item) - 1)
+        this.nextItemId = 0
+        this.length = 0
+        this.listOfIds = {}
+        this.add = function(item) {
+            item.id = this.nextItemId++
+            this[item.id] = item
+            this.listOfIds[item.id] = item.id
+            stack.add(item.id)
+            this.length++
+            return item.id
+        }
+        this.remove = function(id) {
+            stack.remove(id)
+            delete this[id]
+            delete this.listOfIds[id]
+            return this.length--
+        }
+        this.count = function() {
+            return this.length
+        }
+        this.get = function(id) {
+            return this[id]
+        }
+        this.getAllIds = function() {
+            return this.listOfIds
+        }
     }
-    items.removeByIndex = function(index) {
-        return ( items.splice(index, 1) )
+
+    // 'stack' Object, for keeping track of the order in which items are to be displayed
+    // this object should be intrinsically tied with the list of items - every item should appear
+    //   once, and only once, in the stack...
+    // it would be great to turn this into more of a 'tree' like object...
+    //   - individual nodes for individual items
+    //   - branches for grouped items
+    //   - branches for 'compound' items
+    //      (similar to grouped items, but the user cannot ungroup them)
+    // note: we could 'hide' item by removing them from the stack...  might be better to give them
+    //   a 'hidden' flag to prevent them being drawn - this way they'll remember their position in
+    //   the stack whilst hidden.  Would also be easier to find hidden items and therefore unhide
+    //   them!..
+    var stack = new function() {
+        this.list = []
+        this.count = function() {
+            return this.list.length
+        }
+        this.add = function(id) {
+            var index = this.list.indexOf(id)
+            if (index == -1) {
+                return (this.list.push(id) - 1)
+            } else {
+                // don't add item a second time!..
+                return index
+            }
+        }
+        this.remove = function(id) {
+            var index = this.list.indexOf(id)
+            if (index != -1) {
+                this.list.splice(index, 1)
+            }
+            return index
+        }
+        this.get = function(index) {
+            return this.list[index]
+        }
     }
 
     // 'selection' Object, for keeping track of which items are currently selected
     var selection = new function() {
-        this.items = []
+        this.list = []
+        this.colour = null
+        this.line_colour = "#ff0000"
         this.count = function() {
-            return this.items.length
+            return this.list.length
         }
         this.any = function() {
-            return (this.items.length > 0)
+            return (this.list.length > 0)
         }
         this.clear = function() {
-            this.items = []
+            this.list = []
             return true
         }
         this.add = function(item) {
-            index = this.items.indexOf(item.id)
+            var index = this.list.indexOf(item.id)
             if (index == -1) {
-                return (this.items.push(item.id) - 1)
+                return (this.list.push(item.id) - 1)
             } else {
                 // don't add item a second time!..
                 return index
             }
         }
         this.solo = function(item) {
-            this.items = [item.id]
+            this.list = [item.id]
             return 0
         }
         this.remove = function(item) {
-            index = this.items.indexOf(item.id)
+            var index = this.list.indexOf(item.id)
             if (index != -1) {
-                this.items.splice(index, 1)
+                this.list.splice(index, 1)
             }
             return index
         }
         this.isSelected = function(item) {
-            return (this.items.indexOf(item.id) != -1)
+            return (this.list.indexOf(item.id) != -1)
         }
         this.addAll = function() {
-            this.items = []
-            // note: here we are looping through the global items array, not our local this.items
-            for (var i = items.length; --i >= 0 ; ) {
-                this.items.push(items[i].id)
+            this.list = []
+            var allIds = items.getAllIds()
+            for (var id in allIds) {
+                this.list.push(allIds[id])
             }
             return true
+        }
+        this.get = function(index) {
+            return this.list[index]
         }
     }
 
 /************************\
 * Shape item definitions *
 \************************/
+
+function Item() {
+}
+// Set up the Item prototype.
+// I think we are unlikely to create any Items, but we will set this as the __proto__ for other
+//   item types, so that we can inherit (default) functions and values from Item
+
+// Can define a single property like this:
+// Item.prototype.test = function () {
+//     return (1 == 1)
+// }
+
+// Can define multiple properties like this:
+// Item.prototype = {
+//     // note: we are completely replacing the prototype by doing this, so ought to preserve the
+//     //   constructor property
+//     // note: also, this method makes all additional properties - and the constructor - enumerable...
+//     constructor: Item,
+//     test: function() {
+//         return (1 == 1)
+//     }
+// }
+
+// Could also define a single property, with control of various flags, like this:
+// Object.defineProperty(Item, "test", {
+//     // note: all three of these flags default to false
+//     // note: however, these flags are contained within an object, so in theory we could inherit
+//     //   different 'default' values from the Object.prototype
+//     // enumerable: if true, this property will show up during a "for (x in y)" loop
+//     enumerable: false,
+//     // configurable: if true, this property can be deleted, and have its type changed
+//     configurable: false,
+//     // writable: if true, the value of this property can be changed with an assignment operator
+//     writable: false,
+//     // value: the value of the property! can be any valid Javascript value (number, object,
+//     //   function, etc)
+//     value: function() {
+//         return (1 == 1)
+//     }
+// });
+// see here for more details:
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty#summary
+
+Object.defineProperty(Item.prototype, "draw", {
+    enumerable: false, configurable: false, writable: false,
+    value: function (context, colour, line_colour) {
+        switch (arguments.length) {
+            case 0:  context = drawingContext
+            case 1:  colour = this.colour
+            case 2:  line_colour = this.line_colour
+        }
+        if (selection.isSelected(this)) {
+            // item is selected
+            if (selection.colour) colour = selection.colour
+            if (selection.line_colour) line_colour = selection.line_colour
+        }
+        
+        // not sure what to draw for a 'default' here... maybe a small cross, or something..?
+    }
+});
+
+Object.defineProperty(Item.prototype, "mouseOver", {
+    enumerable: false, configurable: false, writable: false,
+    value: function(pos) {
+        return ( (this.x == pos.x) & (this.y == pos.y) )
+    }
+});
+
 
 function Rectangle(x, y, width, height, colour, line_width, line_colour) {
     // deal with default values for any missing arguments...
@@ -127,6 +268,7 @@ function Rectangle(x, y, width, height, colour, line_width, line_colour) {
         }
     }
 }
+// Rectangle.prototype = Item
 
 function Circle(x, y, width, height, colour, line_width, line_colour) {
     // deal with default values for any missing arguments...
@@ -139,7 +281,8 @@ function Circle(x, y, width, height, colour, line_width, line_colour) {
         case 6:  line_colour="#777";
     }
     // this.type = "circle";
-    //  could instead use items[i].constructor.name (which gives "Circle")
+    //  could instead use items[id].constructor.name (which gives "Circle")
+    //  or items[id].constructior == Circle to see if an item is a Circle
     // this.id = newItemId++;
     //  now the id is initialised by items.add()...
     this.x = x;
@@ -151,17 +294,64 @@ function Circle(x, y, width, height, colour, line_width, line_colour) {
     this.line_colour = line_colour;
     this.cursorStyle = "pointer";
 
-    this.draw = function (context, colour, line_colour) {
+//    this.draw = function (context, colour, line_colour) {
+//        switch (arguments.length) {
+//            case 0:  context = drawingContext;
+//            case 1:  colour = this.colour;
+//            case 2:  if (selection.isSelected(this)) {
+//                         // item is selected
+//                         line_colour = "#ff0000";
+//                     } else {
+//                         // item not currently selected
+//                         line_colour = this.line_colour;
+//                     }
+//        }
+//        
+//        context.beginPath();
+//        context.arc(this.x, this.y, this.radius, 0, Math.PI*2, false);
+//        context.closePath();
+//        
+//        context.fillStyle = colour;
+//	    context.fill();
+//        
+//        context.strokeStyle = line_colour;
+//        context.lineWidth = this.line_width;
+//        context.stroke();
+//    }
+    
+//    this.mouseOver = function(pos) {
+        // var x2 = Math.pow(this.x - pos.x,2);
+        // var y2 = Math.pow(this.y - pos.y,2);
+        // var r = Math.sqrt(x2 + y2);
+//        return ( (Math.pow(this.x - pos.x,2) + Math.pow(this.y - pos.y,2)) <= Math.pow(this.radius,2) );
+//    }
+}
+
+Circle.prototype = Object.create(Item.prototype)
+// Circle.prototype.constructor = Circle
+// this is how we are supposed to do 'classical inheritance' - see here:
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/create#Classical_inheritance_with_Object.create
+Object.defineProperty(Circle.prototype, "constructor", {enumerable: false, configurable: false, writable: false, value: Circle})
+
+// add some 'methods' to our genreal Circle.prototype
+// this (I think) means that we only really have one instance of each function - it just gets called
+//   with a different 'this' depending on which Circle is using it
+//   (as apposed to defining them within the creator function above, in which case each new Circle
+//   creates its own instance of each function - which must use more resources, surely..?)
+// this also means we can make functions non-enumerable - probably less useful for Circles and the
+//   like, but may be useful for other things...
+Object.defineProperty(Circle.prototype, "draw", {
+    enumerable: false, configurable: false, writable: false,
+    value: function (context, colour, line_colour) {
         switch (arguments.length) {
             case 0:  context = drawingContext;
             case 1:  colour = this.colour;
-            case 2:  if (selection.isSelected(this)) {
-                         // item is selected
-                         line_colour = "#ff0000";
-                     } else {
-                         // item not currently selected
-                         line_colour = this.line_colour;
-                     }
+            case 2:  line_colour = this.line_colour;
+        }
+        if (selection.isSelected(this)) {
+            // item is selected
+            if (selection.colour) colour = selection.colour;
+            if (selection.line_colour) line_colour = selection.line_colour;
         }
         
         context.beginPath();
@@ -175,15 +365,17 @@ function Circle(x, y, width, height, colour, line_width, line_colour) {
         context.lineWidth = this.line_width;
         context.stroke();
     }
-    
-    this.mouseOver = function(pos) {
+});
+
+Object.defineProperty(Circle.prototype, "mouseOver", {
+    enumerable: false, configurable: false, writable: false,
+    value: function(pos) {
         // var x2 = Math.pow(this.x - pos.x,2);
         // var y2 = Math.pow(this.y - pos.y,2);
         // var r = Math.sqrt(x2 + y2);
         return ( (Math.pow(this.x - pos.x,2) + Math.pow(this.y - pos.y,2)) <= Math.pow(this.radius,2) );
     }
-}
-
+});
 
 
 
@@ -346,35 +538,32 @@ function canvasDoubleClick(e) {
     setCursorStyle(this_item,pos);
 }
 
+// go through all the items (in reverse stacking order) to see which, if any, we are over
 function which_item(pos) {
-    for (var i = items.length-1; i >= 0 ; i--) {
-        if (items[i].mouseOver(pos)) return i;
+    for (var index = stack.count(); --index>=0; ) {
+        if (items[stack.get(index)].mouseOver(pos)) return stack.get(index);
     }
     return -1;
 }
 
 function canvasMouseMove(e) {
     var pos = getCursorPosition(e);
-
+    var itemId = which_item(pos)
     // try to work out if we are over an existing item or not...
-    setCursorStyle(which_item(pos), pos);
+    setCursorStyle(itemId, pos);
+
+    thisIdElement.innerHTML = itemId;
 }
 
-function setCursorStyle(it, pos) {
-    if (it == -1) {
+function setCursorStyle(id, pos) {
+    if (id == -1) {
         // not over any existing items
 		canvasElement.style.cursor = "default";
     } else {
         // over an item
         var cursor;
-        try {
-            cursor = items[it].getCursorStyle(pos);
-        } catch(err) {
-            // most probably wind up here because this item doesn't have a getCursor method defined...
-            // in which case, this isn't strictly necessary.  But I'm leaving it here in case getCursor throws some kind of error itself (which I guess could leave cursor as, say, null or "" or "ldkfhgld"..?)
-            cursor = undefined;
-        }
-        if (cursor === undefined) cursor = items[it].cursorStyle;
+        if (items[id].getCursorStyle !== undefined) cursor = items[id].getCursorStyle(pos);
+        if (cursor === undefined) cursor = items[id].cursorStyle;
         if (cursor === undefined) cursor = "default";
         canvasElement.style.cursor = cursor;
     }
@@ -388,10 +577,8 @@ function canvasKeyDown(e) {
     case "U+0008": // Backspace
         if (selection.any()) {
             // one or more items selected - delete them!
-            for (var i = items.length; --i >= 0 ; ) {
-                if (selection.isSelected(items[i])) {
-                    items.removeByIndex(i);
-                }
+            for (var index = selection.count(); --index>=0; ) {
+                items.remove(selection.get(index));
             }
             selection.clear();
             e.preventDefault();
@@ -428,9 +615,10 @@ function draw() {
     // drawingContext.fillStyle = "#eee";
     drawingContext.fillRect(0, 0, canvasWidth, canvasHeight)
 
-    for (var i = 0; i < items.length; i++) {
+    var count = stack.count()
+    for (var index = 0; index<count; index++) {
 	    // drawItem(items[i]);
-        items[i].draw();
+        items[stack.get(index)].draw();
     }
 
     counterElement.innerHTML = items.length;
@@ -481,8 +669,15 @@ function init(canvas, counter, nextId) {
     }
     nextIdElement = nextId;
 
+    // check if a 'next id' already exists in the html document, and create one if not
+    thisIdElement = document.getElementById('thisId');
+    if (!thisId) {
+        thisIdElement = document.createElement("p");
+	    document.body.appendChild(thisIdElement);
+    }
+
     // set up a bunch of random circles...
-    for (var i = 0; i < 0; i++) {
+    for (var i = 0; i < 5; i++) {
         items.add(new Circle(Math.floor(Math.random() * canvasWidth), Math.floor(Math.random() * canvasHeight), 10+Math.floor(Math.random()*11)));
     }
   
@@ -490,10 +685,10 @@ function init(canvas, counter, nextId) {
     draw();
 }
  </script>
- <title>Canvas 6</title>
+ <title>Canvas 7</title>
 </head>
 <body>
- <h1>Canvas Development #6</h1>
+ <h1>Canvas Development #7</h1>
  <p>Double-click anywhere in the square to draw a circle!</p>
  <div style="float: left; height: 320px; width: 315px; overflow: auto;">
   <!-- use "overflow: scroll;" to make scroll bars always visible -->
@@ -502,13 +697,16 @@ function init(canvas, counter, nextId) {
  </div>
  <p>Number of items: <span id="counter">-1</span><br />
     Next unique item id: <span id="nextId">-1</span><br />
+    This item id: <span id="thisId">-1</span><br />
     Click on a circle to select it, shift-click to add to your selection, or control-click to toggle selection.<br />
     Press backsapce/delete to delete selected circles!<br />
     (note: if nothing is selected, then backspace will do it's default action, which is to go to the previous page in your browser's history...)<br />
     (also note: the canvas needs to have the input focus (shown by a blue halo) to catch any keyboard events)<br />
     Ctrl-A will select all circles.<br />
     Internally, started change towards a more 'object-oriented' approach... (circles are more object-y; so is the selection list; and the list of items)<br />
-    Double-clicking now supported - double click to create a circle, and double-click on a circle to select only it!
+    Double-clicking now supported - double click to create a circle, and double-click on a circle to select only it!<br />
+    Internally separated out the stacking order from the list of items - hopefully a useful move in the future!..<br />
+    Also started making more use of prototypes... Circles now inherit from a new Item type, and generic Circle functions are contained in the Circle.prototype, rather than in each Circle instance individually (I think this is an efficient move..?)
  </p>
  <script>
    init(document.getElementById('myCanvas'), document.getElementById('counter'), document.getElementById('nextId'));

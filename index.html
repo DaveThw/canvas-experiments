@@ -6,6 +6,12 @@
 
 //3456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 1234567890
 
+function breakpoint() {
+    // Set a breakpoint here to pause Javascript!..
+    // (I've put this at the top of the script, so that it won't move around as we add/remove lines)
+    var test = true;
+}
+
     // default values
     var gridSize = 10;
     var canvasWidth = 300;
@@ -18,162 +24,338 @@
     var nextIdElement;
     var thisIdElement;
     
-    // global variables
-    // 'items' Object, containing all our items, refernced by unique id numbers
-    var items = new function() {
-    // I use...
-    // items[index] to get at a specific item
-    // (and items[index].xxx to get at that items properties...)
-    // items.push(item) to add an item
-    //   - change to use items.add(item) instead
-    // items.splice(index, 1) to remove an item
-    //   - change to use items.remove(item) instead
-    // items.length to get number of items
-    //   - change to use items.count() instead
-    // for loop to check through all items
-    //   - mainly this is for drawing the items (so can loop through stacking order instead), or
-    //     working out if we are hovering over an item (loop through stacking order instead), or
-    //     selecting all items (could do this by looping through stacking order, althrough that's
-    //     less scemantically pleasing...)
-    //   note, we should use "for (var i = items.length; --i >= 0 ; ) {" as (apparently) it is the
-    //   fastest way of going through the array.  "for (var i in items) {" shouldn't really be used
-    //   on an array, as it can throw up additional 'methods' and things...  see here:
-    //   http://stackoverflow.com/questions/500504/why-is-using-for-in-with-array-iteration-such-a-bad-idea
-    // items = [] to intialise it, once - now moved from init function to initial declaration here
-    //
-    // Hmm.. okay, here's an idea - seperate the display order (or stacking order) out into a
-    // separate array of itemId's.  Then change items into an object, with the itemId being the key
-    // of each Item - these can be accessed as items[itemId].
-    // Pros - easier direct access to items by their itemId - will be useful in the future
-    //      - stacking order becomes an array of itemId's - with 'methods' for re-ordering items
-    // Cons - less easy to iterate through all items - using "for (var item in items) {" would also
-    //        pick up on other 'methods' and variables within the items object...
-    //      - when we delete an item we'd ought to update the stacking order array too (or does it
-    //        tidy itself up / fail gracefully when it finds an item that no longer exists..?)
-    //         - will need to think about this also for other things that might reference items by
-    //           their itemId - like a line linking two items together...
-        this.nextItemId = 0
-        this.length = 0
-        this.listOfIds = {}
-        this.add = function(item) {
-            item.id = this.nextItemId++
-            this[item.id] = item
-            this.listOfIds[item.id] = item.id
-            stack.add(item.id)
-            this.length++
-            return item.id
-        }
-        this.remove = function(id) {
-            stack.remove(id)
-            delete this[id]
-            delete this.listOfIds[id]
-            return this.length--
-        }
-        this.count = function() {
-            return this.length
-        }
-        this.get = function(id) {
-            return this[id]
-        }
-        this.getAllIds = function() {
-            return this.listOfIds
+    var timings = [ {label: "init", time: new Date().getTime()} ];
+    defObjProp(timings, "add", function (label) {
+        //var thisTime = new Date().getTime()
+        //var lastTime = timings[timings.length-1].time
+        //var delay = thisTime - lastTime
+        //if (label) this.push({label: label, time: thisTime, delay: delay})
+        //else this.push({time: thisTime, delay: delay})
+    } )
+
+
+// to make life a little easier, here's a function to add a property (with optional flags) to an
+// object
+function defObjProp(obj, prop, val, writ, enu, conf) {
+    switch (arguments.length) {
+        case 2:  val = undefined
+        case 3:  writ = false
+        case 4:  enu = false
+        case 5:  conf = false
+    }
+    var def = defObjProp.def || ( defObjProp.def = {} )
+    def.value = val
+    def.enumerable = enu
+    def.writable = writ
+    def.configurable = conf
+    Object.defineProperty(obj, prop, def)
+}
+
+// this is how we are supposed to do 'classical inheritance' - see here:
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/create#Classical_inheritance_with_Object.create
+// but to make life a little easier, here's a function to do it for us.
+function setObjProto(obj, proto) {
+    obj.prototype = Object.create(proto.prototype)
+    // obj.prototype.constructor = obj
+    defObjProp(obj.prototype, "constructor", obj)
+}
+
+// and finally (for now) in the making-life-a-little-easier group of functions, here's one to call
+// the parent constructor, from within a constructor function for which we set the parent prototype
+// to something specific - for example by calling setObjProto above!..
+function callParentConstructor(me) {
+    // Object.getPrototypeOf(Object.getPrototypeOf(me)).constructor.call(me)
+    var that = Object.getPrototypeOf(me)
+    // so here, 'that' is the prototype of the thing that called this function
+    if (that !== Object) {
+        that = Object.getPrototypeOf(that)
+        // now, 'that' is the prototype of the parent of the thing that called this function
+        if (that !== Object) {
+            that.constructor.call(me)
         }
     }
+}
 
-    // 'stack' Object, for keeping track of the order in which items are to be displayed
-    // this object should be intrinsically tied with the list of items - every item should appear
-    //   once, and only once, in the stack...
-    // it would be great to turn this into more of a 'tree' like object...
-    //   - individual nodes for individual items
-    //   - branches for grouped items
-    //   - branches for 'compound' items
-    //      (similar to grouped items, but the user cannot ungroup them)
-    // note: we could 'hide' item by removing them from the stack...  might be better to give them
-    //   a 'hidden' flag to prevent them being drawn - this way they'll remember their position in
-    //   the stack whilst hidden.  Would also be easier to find hidden items and therefore unhide
-    //   them!..
-    var stack = new function() {
-        this.list = []
-        this.count = function() {
-            return this.list.length
-        }
-        this.add = function(id) {
-            var index = this.list.indexOf(id)
-            if (index == -1) {
-                return (this.list.push(id) - 1)
-            } else {
-                // don't add item a second time!..
-                return index
-            }
-        }
-        this.remove = function(id) {
-            var index = this.list.indexOf(id)
-            if (index != -1) {
-                this.list.splice(index, 1)
-            }
+
+
+
+/**************************************************************************************************\
+*                                   Master structure definitions                                   *
+\**************************************************************************************************/
+
+
+// 'items' Object, containing all our items, referenced by unique id numbers
+// I use...
+// items[id] to get at a specific item
+// (and items[id].xxx to get at that items properties...)
+// items.push(item) to add an item
+//   - change to use items.add(item) instead
+// items.splice(index, 1) to remove an item
+//   - change to use items.remove(item) instead
+// items.length to get number of items
+//   - could change to use items.count() instead..?
+// for loop to check through all items
+//   - mainly this is for drawing the items (so can loop through stacking order instead), or
+//     working out if we are hovering over an item (loop through stacking order instead), or
+//     selecting all items (could do this by looping through stacking order, although that's
+//     less scemantically pleasing...)
+//   note, we should use "for (var i = items.length; --i >= 0 ; ) {" as (apparently) it is the
+//   fastest way of going through the array.  "for (var i in items) {" shouldn't really be used
+//   on an array, as it can throw up additional 'methods' and things...  see here:
+//   http://stackoverflow.com/questions/500504/why-is-using-for-in-with-array-iteration-such-a-bad-idea
+// items = [] to intialise it, once - now moved from init function to initial declaration here
+//
+// Hmm.. okay, here's an idea - seperate the display order (or stacking order) out into a
+// separate array of itemId's.  Then change items into an object, with the itemId being the key
+// of each Item - these can be accessed as items[itemId].
+// Pros - easier direct access to items by their itemId - will be useful in the future
+//      - stacking order becomes an array of itemId's - with 'methods' for re-ordering items
+// Cons - less easy to iterate through all items - using "for (var item in items) {" would also
+//        pick up on other 'methods' and variables within the items object...
+//      - when we delete an item we'd ought to update the stacking order array too (or does it
+//        tidy itself up / fail gracefully when it finds an item that no longer exists..?)
+//         - will need to think about this also for other things that might reference items by
+//           their itemId - like a line linking two items together...
+// Done! - although more work on this idea still to be done...
+function listOfItems() {
+    defObjProp(this, "nextItemId", 0, true)
+    defObjProp(this, "length", 0, true)
+}
+defObjProp(listOfItems.prototype, "add", function(item) {
+    item.id = this.nextItemId++
+    this[item.id] = item
+    stack.add(item.id)
+    this.length++
+    return item.id
+} )
+defObjProp(listOfItems.prototype, "remove", function(id) {
+    stack.remove(id)
+    if (this[id] != undefined) {
+        delete this[id]
+        return this.length--
+    } else {
+        return this.length
+    }
+} )
+defObjProp(listOfItems.prototype, "removeItem", function(item) {
+    return this.remove(item.id)
+} )
+defObjProp(listOfItems.prototype, "count", function() {
+    return this.length
+} )
+
+var items = new listOfItems()
+
+
+// 'stack' Object, for keeping track of the order in which items are to be displayed
+// this object should be intrinsically tied with the list of items - every item should appear
+//   once, and only once, in the stack...
+// it would be great to turn this into more of a 'tree' like object...
+//   - individual nodes for individual items
+//   - branches for grouped items
+//   - branches for 'compound' items
+//      (similar to grouped items, but the user cannot ungroup them)
+// note: we could 'hide' item by removing them from the stack...  might be better to give them
+//   a 'hidden' flag to prevent them being drawn - this way they'll remember their position in
+//   the stack whilst hidden.  Would also be easier to find hidden items and therefore unhide
+//   them!..
+var stack = new function() {
+    this.list = []
+    this.count = function() {
+        return this.list.length
+    }
+    this.add = function(id) {
+        var index = this.list.indexOf(id)
+        if (index == -1) {
+            return (this.list.push(id) - 1)
+        } else {
+            // don't add item a second time!..
             return index
         }
-        this.get = function(index) {
-            return this.list[index]
-        }
     }
+    this.remove = function(id) {
+        var index = this.list.indexOf(id)
+        if (index != -1) {
+            this.list.splice(index, 1)
+        }
+        return index
+    }
+    this.get = function(index) {
+        return this.list[index]
+    }
+}
 
-    // 'selection' Object, for keeping track of which items are currently selected
-    var selection = new function() {
+// 'selection' Object, for keeping track of which items are currently selected
+var selection = new function() {
+    this.list = []
+    this.colour = null
+    this.line_colour = "#ff0000"
+    this.count = function() {
+        return this.list.length
+    }
+    this.any = function() {
+        return (this.list.length > 0)
+    }
+    this.clear = function() {
+        for (var index = this.list.length; --index>=0; ) {
+            items[this.list[index]].selected = false
+        }
         this.list = []
-        this.colour = null
-        this.line_colour = "#ff0000"
-        this.count = function() {
-            return this.list.length
+        return true
+    }
+    this.delete = function() {
+        for (var index = this.list.length; --index>=0; ) {
+            items.remove(this.list[index])
         }
-        this.any = function() {
-            return (this.list.length > 0)
-        }
-        this.clear = function() {
-            this.list = []
-            return true
-        }
-        this.add = function(item) {
-            var index = this.list.indexOf(item.id)
-            if (index == -1) {
-                return (this.list.push(item.id) - 1)
-            } else {
-                // don't add item a second time!..
-                return index
-            }
-        }
-        this.solo = function(item) {
-            this.list = [item.id]
-            return 0
-        }
-        this.remove = function(item) {
-            var index = this.list.indexOf(item.id)
-            if (index != -1) {
-                this.list.splice(index, 1)
-            }
+        this.list = []
+        return true
+    }
+    this.add = function(item) {
+        item.selected = true
+        var index = this.list.indexOf(item.id)
+        if (index == -1) {
+            return (this.list.push(item.id) - 1)
+        } else {
+            // don't add item a second time!..
             return index
         }
-        this.isSelected = function(item) {
-            return (this.list.indexOf(item.id) != -1)
+    }
+    this.solo = function(item) {
+        for (var index = this.list.length; --index>=0; ) {
+            items[this.list[index]].selected = false
         }
-        this.addAll = function() {
-            this.list = []
-            var allIds = items.getAllIds()
-            for (var id in allIds) {
-                this.list.push(allIds[id])
+        item.selected = true
+        this.list = [item.id]
+        return 0
+    }
+    this.remove = function(item) {
+        item.selected = false
+        var index = this.list.indexOf(item.id)
+        if (index != -1) {
+            this.list.splice(index, 1)
+        }
+        return index
+    }
+    this.isSelected = function(item) {
+        // return (this.list.indexOf(item.id) != -1)
+        return item.selected
+    }
+    this.addAll = function() {
+        this.list = []
+        for (var id in items) {
+            items[id].selected = true
+            this.list.push(parseInt(id,10))
+        }
+        return true
+    }
+    this.get = function(index) {
+        return this.list[index]
+    }
+}
+
+
+
+
+/**************************************************************************************************\
+*                                    Position and Mouse objects                                    *
+\**************************************************************************************************/
+
+
+function Position(x, y) {
+    this.x = x
+    this.y = y
+}
+
+function Mouse() {
+    this.x = null
+    this.y = null
+    this.updatePosition = function (e) {
+        /* returns a copy of self (with .x and .y properties) */
+        // This version also caches our mouse coordinates - mainly for use with key-press events
+        if (e.pageX != undefined && e.pageY != undefined) {
+            this.x = e.pageX
+            this.y = e.pageY
+        } else {
+            this.x = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft
+            this.y = e.clientY + document.body.scrollTop  + document.documentElement.scrollTop
+        }
+        this.x -= canvasElement.offsetLeft
+        this.y -= canvasElement.offsetTop
+        
+        return this
+    }
+    this.dragging = false
+    this.dragStart = new Position(null, null)
+    this.dragOffset = new Position(null, null)
+    this.dragNoOffset = new Position(0, 0)
+    this.startDrag = function () {
+        if (!this.dragging) {
+            this.dragging = true
+            this.dragStart.x = this.x
+            this.dragStart.y = this.y
+            this.dragOffset.x = this.dragOffset.y = 0
+            for (var index=selection.count(); --index>=0; ) {
+                items[selection.get(index)].offset = this.dragOffset
             }
-            return true
-        }
-        this.get = function(index) {
-            return this.list[index]
         }
     }
+    this.doDrag = function () {
+        if (this.dragging) {
+            this.dragOffset.x = this.x - this.dragStart.x
+            this.dragOffset.y = this.y - this.dragStart.y
+//            for (var index=selection.count(); --index>=0; ) {
+//                items[selection.get(index)].offset.x = this.dragOffset.x
+//                items[selection.get(index)].offset.y = this.dragOffset.y
+//            }
+        }
+    }
+    this.stopDrag = function () {
+        if (this.dragging) {
+            if (selection.any()) {
+                this.dragOffset.x = this.x - this.dragStart.x
+                this.dragOffset.y = this.y - this.dragStart.y
+                // one or more items selected - move them!
+                for (var index = selection.count(); --index>=0; ) {
+                    items[selection.get(index)].x += this.dragOffset.x
+                    items[selection.get(index)].y += this.dragOffset.y
+//                    items[selection.get(index)].offset.x = items[selection.get(index)].offset.y = 0
+                    items[selection.get(index)].offset = this.dragNoOffset
+                }
+            }
+            this.dragging = false
+            this.dragStart.x = this.dragStart.y = this.dragOffset.x = this.dragOffset.y = null
+        }
+    }
+    this.cancelDrag = function () {
+        for (var index = selection.count(); --index>=0; ) {
+//            items[selection.get(index)].offset.x = items[selection.get(index)].offset.y = 0
+            items[selection.get(index)].offset = this.dragNoOffset
+        }
+        this.dragging = false
+        this.dragStart.x = this.dragStart.y = this.dragOffset.x = this.dragOffset.y = null
+    }
+}
+setObjProto(Mouse, Position)
+var mouse = new Mouse()
 
-/************************\
-* Shape item definitions *
-\************************/
+
+
+
+/**************************************************************************************************\
+*                                      Shape item definitions                                      *
+\**************************************************************************************************/
+
 
 function Item() {
+    this.x = 0;
+    this.y = 0;
+    this.colour = "#fff"
+    this.line_width = 3
+    this.line_colour = "#777"
+    this.cursorStyle = "pointer"
+    this.visible = true
+    this.selected = false
+    this.offset = new Position(0,0)
 }
 // Set up the Item prototype.
 // I think we are unlikely to create any Items, but we will set this as the __proto__ for other
@@ -215,30 +397,24 @@ function Item() {
 // see here for more details:
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty#summary
 
-Object.defineProperty(Item.prototype, "draw", {
-    enumerable: false, configurable: false, writable: false,
-    value: function (context, colour, line_colour) {
-        switch (arguments.length) {
-            case 0:  context = drawingContext
-            case 1:  colour = this.colour
-            case 2:  line_colour = this.line_colour
-        }
-        if (selection.isSelected(this)) {
-            // item is selected
-            if (selection.colour) colour = selection.colour
-            if (selection.line_colour) line_colour = selection.line_colour
-        }
-        
-        // not sure what to draw for a 'default' here... maybe a small cross, or something..?
+defObjProp(Item.prototype, "draw", function(context, colour, line_colour) {
+    switch (arguments.length) {
+        case 0:  context = drawingContext
+        case 1:  colour = this.colour
+        case 2:  line_colour = this.line_colour
     }
-});
+    if (this.selected) {
+        // item is selected
+        if (selection.colour) colour = selection.colour
+        if (selection.line_colour) line_colour = selection.line_colour
+    }
+    
+    // not sure what to draw for a 'default' here... maybe a small cross, or something..?
+} )
 
-Object.defineProperty(Item.prototype, "mouseOver", {
-    enumerable: false, configurable: false, writable: false,
-    value: function(pos) {
-        return ( (this.x == pos.x) & (this.y == pos.y) )
-    }
-});
+defObjProp(Item.prototype, "isMouseOver", function() {
+    return ( (this.x == mouse.x) & (this.y == mouse.y) )
+} )
 
 
 function Rectangle(x, y, width, height, colour, line_width, line_colour) {
@@ -251,6 +427,7 @@ function Rectangle(x, y, width, height, colour, line_width, line_colour) {
         case 5:  line_width=3;
         case 6:  line_colour="#777";
     }
+    callParentConstructor(this)
     // this.type = "rectangle";
     // this.id = newItemId++;
     this.x = x;
@@ -268,18 +445,21 @@ function Rectangle(x, y, width, height, colour, line_width, line_colour) {
         }
     }
 }
-// Rectangle.prototype = Item
+setObjProto(Rectangle, Item)
 
-function Circle(x, y, width, height, colour, line_width, line_colour) {
+function Circle(x, y, radius, colour, line_width, line_colour) {
     // deal with default values for any missing arguments...
     // (borrowed from here: http://stackoverflow.com/a/9363769)
     switch (arguments.length) {
-        case 2:  width = 10;
-        case 3:  height = 10;
-        case 4:  colour="#fff";
-        case 5:  line_width=3;
-        case 6:  line_colour="#777";
+        case 2:  radius = 10;
+        case 3:  colour="#fff";
+        case 4:  line_width=3;
+        case 5:  line_colour="#777";
     }
+    // Call the Item constructor function:
+    // Item.call(this)
+    // Object.getPrototypeOf(Object.getPrototypeOf(this)).constructor.call(this)
+    callParentConstructor(this)
     // this.type = "circle";
     //  could instead use items[id].constructor.name (which gives "Circle")
     //  or items[id].constructior == Circle to see if an item is a Circle
@@ -287,51 +467,13 @@ function Circle(x, y, width, height, colour, line_width, line_colour) {
     //  now the id is initialised by items.add()...
     this.x = x;
     this.y = y;
-    this.radius = this.width = width;
-    this.height = height;
+    this.radius = radius;
     this.colour = colour;
     this.line_width = line_width;
     this.line_colour = line_colour;
     this.cursorStyle = "pointer";
-
-//    this.draw = function (context, colour, line_colour) {
-//        switch (arguments.length) {
-//            case 0:  context = drawingContext;
-//            case 1:  colour = this.colour;
-//            case 2:  if (selection.isSelected(this)) {
-//                         // item is selected
-//                         line_colour = "#ff0000";
-//                     } else {
-//                         // item not currently selected
-//                         line_colour = this.line_colour;
-//                     }
-//        }
-//        
-//        context.beginPath();
-//        context.arc(this.x, this.y, this.radius, 0, Math.PI*2, false);
-//        context.closePath();
-//        
-//        context.fillStyle = colour;
-//	    context.fill();
-//        
-//        context.strokeStyle = line_colour;
-//        context.lineWidth = this.line_width;
-//        context.stroke();
-//    }
-    
-//    this.mouseOver = function(pos) {
-        // var x2 = Math.pow(this.x - pos.x,2);
-        // var y2 = Math.pow(this.y - pos.y,2);
-        // var r = Math.sqrt(x2 + y2);
-//        return ( (Math.pow(this.x - pos.x,2) + Math.pow(this.y - pos.y,2)) <= Math.pow(this.radius,2) );
-//    }
 }
-
-Circle.prototype = Object.create(Item.prototype)
-// Circle.prototype.constructor = Circle
-// this is how we are supposed to do 'classical inheritance' - see here:
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/create#Classical_inheritance_with_Object.create
-Object.defineProperty(Circle.prototype, "constructor", {enumerable: false, configurable: false, writable: false, value: Circle})
+setObjProto(Circle, Item)
 
 // add some 'methods' to our genreal Circle.prototype
 // this (I think) means that we only really have one instance of each function - it just gets called
@@ -340,73 +482,59 @@ Object.defineProperty(Circle.prototype, "constructor", {enumerable: false, confi
 //   creates its own instance of each function - which must use more resources, surely..?)
 // this also means we can make functions non-enumerable - probably less useful for Circles and the
 //   like, but may be useful for other things...
-Object.defineProperty(Circle.prototype, "draw", {
-    enumerable: false, configurable: false, writable: false,
-    value: function (context, colour, line_colour) {
-        switch (arguments.length) {
-            case 0:  context = drawingContext;
-            case 1:  colour = this.colour;
-            case 2:  line_colour = this.line_colour;
-        }
-        if (selection.isSelected(this)) {
-            // item is selected
-            if (selection.colour) colour = selection.colour;
-            if (selection.line_colour) line_colour = selection.line_colour;
-        }
-        
-        context.beginPath();
-        context.arc(this.x, this.y, this.radius, 0, Math.PI*2, false);
-        context.closePath();
-        
-        context.fillStyle = colour;
-	    context.fill();
-        
-        context.strokeStyle = line_colour;
-        context.lineWidth = this.line_width;
-        context.stroke();
+defObjProp(Circle.prototype, "draw", function(context, colour, line_colour) {
+    switch (arguments.length) {
+        case 0:  context = drawingContext
+        case 1:  colour = this.colour
+        case 2:  line_colour = this.line_colour
     }
-});
-
-Object.defineProperty(Circle.prototype, "mouseOver", {
-    enumerable: false, configurable: false, writable: false,
-    value: function(pos) {
-        // var x2 = Math.pow(this.x - pos.x,2);
-        // var y2 = Math.pow(this.y - pos.y,2);
-        // var r = Math.sqrt(x2 + y2);
-        return ( (Math.pow(this.x - pos.x,2) + Math.pow(this.y - pos.y,2)) <= Math.pow(this.radius,2) );
+//    this.offset.x = 0
+//    this.offset.y = 0
+//    if (selection.isSelected(this)) {
+    if (this.selected) {
+        // item is selected
+        if (selection.colour) colour = selection.colour
+        if (selection.line_colour) line_colour = selection.line_colour
+//        if (mouse.dragging) {
+//            this.offset.x = mouse.dragOffset.x
+//            this.offset.y = mouse.dragOffset.y
+//        }
     }
-});
+    
+    context.beginPath()
+    context.arc(this.x+this.offset.x, this.y+this.offset.y, this.radius, 0, Math.PI*2, false)
+    context.closePath()
+    
+    context.fillStyle = colour
+	context.fill()
+    
+    context.strokeStyle = line_colour
+    context.lineWidth = this.line_width
+    context.stroke()
+} )
+
+defObjProp(Circle.prototype, "isMouseOver", function() {
+    // var x2 = Math.pow(this.x - mouse.x,2)
+    // var y2 = Math.pow(this.y - mouse.y,2)
+    // var r = Math.sqrt(x2 + y2)
+    // if (selection.isSelected(this) && mouse.dragging) {
+//    if (this.selected && mouse.dragging) {
+//        this.offset.x = mouse.dragOffset.x
+//        this.offset.y = mouse.dragOffset.y
+//    } else {
+//        this.offset.x = 0
+//        this.offset.y = 0
+//    }
+    return ( (Math.pow(this.x + this.offset.x - mouse.x,2) + Math.pow(this.y + this.offset.y - mouse.y,2)) <= Math.pow(this.radius,2) )
+} )
 
 
 
-function Position(x, y) {
-    this.x = x;
-    this.y = y;
-}
 
-function getCursorPosition(e) {
-    /* returns Position with .x and .y properties */
-    var x;
-    var y;
-    if (e.pageX != undefined && e.pageY != undefined) {
-        x = e.pageX;
-        y = e.pageY;
-    } else {
-        x = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
-        y = e.clientY + document.body.scrollTop + document.documentElement.scrollTop;
-    }
-    x -= canvasElement.offsetLeft;
-    y -= canvasElement.offsetTop;
+/**************************************************************************************************\
+*                                          Event handlers                                          *
+\**************************************************************************************************/
 
-    var pos = new Position(x, y);
-    return pos;
-}
-
-
-
-/****************\
-* Event handlers *
-\****************/
 
 // Mouse Click Events sequence:
 // 1) MouseDown
@@ -427,6 +555,7 @@ function getCursorPosition(e) {
 
 
 function canvasMouseDown(e) {
+    timings.add("MouseDown - start")
     // button detection needs improving, espeically if this is ever to become cross-browser compatible!.. see here:
     // http://javascript.info/tutorial/mouse-events#getting-the-button-info-which-button
     // or here:
@@ -452,10 +581,10 @@ function canvasMouseDown(e) {
             canvasElement.focus();
             window.scroll(scroll_x,scroll_y);
         }
-        var pos = getCursorPosition(e);
+        mouse.updatePosition(e);
         
         // try to work out if we have clicked on an existing item or not...
-        var this_item = which_item(pos)
+        var this_item = which_item()
         
         if (this_item == -1) {
             // we've clicked in empty space...
@@ -471,7 +600,8 @@ function canvasMouseDown(e) {
             if (!e.shiftKey && !e.ctrlKey && !e.altKey && !e.altGraphKey && !e.metaKey) {
                 // straight forward click - select this item only
                 // ...unless this item is already selected (or part of a larger selection), in which case don't change anything...
-                if (!selection.isSelected(items[this_item])) {
+                // if (!selection.isSelected(items[this_item])) {
+                if (!items[this_item].selected) {
                     // not currently selected - select it!
                     selection.solo(items[this_item])
                 }
@@ -481,7 +611,8 @@ function canvasMouseDown(e) {
             } else if (!e.shiftKey && e.ctrlKey && !e.altKey && !e.altGraphKey && !e.metaKey) {
                 // control-click - toggle this item 'selected' state
                 // is this item already selected..?
-                if (selection.isSelected(items[this_item])) {
+                // if (selection.isSelected(items[this_item])) {
+                if (items[this_item].selected) {
                     // yes - remove it from the list!
                     selection.remove(items[this_item]);
                 } else {
@@ -491,35 +622,73 @@ function canvasMouseDown(e) {
             } else {
                 // some other form of click... do nothing..?
             }
+            
+            mouse.startDrag()
         }
   
         // update canvas
         draw();
         // update mouse pointer
-        setCursorStyle(this_item,pos);
+        setCursorStyle(this_item);
     } else {
         // right-click (or maybe middle-click?)
     }
+    timings.add("MouseDown - end")
 }
 
 // This gets called just after a mouse up event - regardless of whether there's been any mouse movment... (on Chrome on my Chromebook)
 function canvasClick(e) {
     // currently, all the code that was here is now in MouseDown, above... 
+    timings.add("Click - start/end")
+}
+
+// this is very similar to MouseOut, below...
+function canvasMouseUp(e) {
+    timings.add("MouseUp - start")
+    if (mouse.dragging) {
+        mouse.updatePosition(e);
+        mouse.stopDrag()
+        
+        // not certain if we really need to re-draw here or not...
+        // ... but I guess that the mouse could have moved since we received out last mouseMove
+        //   event..?
+        draw();
+        // update mouse pointer
+        setCursorStyle(which_item());
+    }
+    timings.add("MouseUp - end")
+}
+
+// this is very similar to MouseUp, above...
+function canvasMouseOut(e) {
+    timings.add("MouseOut - start")
+    if (mouse.dragging) {
+        mouse.updatePosition(e);
+        mouse.stopDrag()
+
+        // not certain if we really need to re-draw here or not...
+        draw();
+    }
+    // update mouse pointer
+    setCursorStyle(-1);
+    timings.add("MouseOut - end")
 }
 
 // This gets called when the user double clicks with a mouse (or on a touch screen..?)
 // When the user double clicks with a mouse, we receive one Click event for the first click, then a second Click event followed by a DoubleClick event for the second click
 function canvasDoubleClick(e) {
-    var pos = getCursorPosition(e);
+    timings.add("DoubleClick - start")
+    mouse.updatePosition(e);
 
     // try to work out if we have clicked on an existing item or not...
-    var this_item = which_item(pos)
+    var this_item = which_item()
 
     if (this_item == -1) {
         // double click not on an item - add a new circle to our items list, where we clicked...
-        // add it to the list, and update this_item to point at it
-        // (updating this_item is mainly for the benefit of the call to setCursor below, and rather assumes that we've inserted our new item somewhere underneath the mouse cursor...)
-        this_item = items.add(new Circle(pos.x, pos.y, 10+Math.floor(Math.random()*11)));
+        // add it to the list, and update this_item - mainly for the benefit of the call to
+        //   setCursor below
+        items.add(new Circle(mouse.x, mouse.y, 10+Math.floor(Math.random()*11)));
+        this_item = which_item()
     } else {
         // we've double clicked on an item...
         // erm... do nothing for now..? - nope!
@@ -529,61 +698,50 @@ function canvasDoubleClick(e) {
     }
     
     // prevent default actions for a double click (tends to highlight some text around the canvas!..)
-    e.preventDefault();
-    // doesn't seem to be working..?
+    // e.preventDefault();
+    // this doesn't work - we need to prevent mouse-down events, above...
+    // ... or with canvasElement.onselectstart, down below (in init)
 
     // update canvas
     draw();
     // update mouse pointer
-    setCursorStyle(this_item,pos);
-}
-
-// go through all the items (in reverse stacking order) to see which, if any, we are over
-function which_item(pos) {
-    for (var index = stack.count(); --index>=0; ) {
-        if (items[stack.get(index)].mouseOver(pos)) return stack.get(index);
-    }
-    return -1;
+    setCursorStyle(this_item);
+    timings.add("DoubleClick - end")
 }
 
 function canvasMouseMove(e) {
-    var pos = getCursorPosition(e);
-    var itemId = which_item(pos)
+    mouse.updatePosition(e);
+    if (mouse.dragging) {
+        timings.add("MouseMove-dragging - start")
+        mouse.doDrag()
+        draw()
+        timings.add("MouseMove-dragging - end")
+    }
+
     // try to work out if we are over an existing item or not...
-    setCursorStyle(itemId, pos);
+    var itemId = which_item()
+    setCursorStyle(itemId);
 
     thisIdElement.innerHTML = itemId;
 }
 
-function setCursorStyle(id, pos) {
-    if (id == -1) {
-        // not over any existing items
-		canvasElement.style.cursor = "default";
-    } else {
-        // over an item
-        var cursor;
-        if (items[id].getCursorStyle !== undefined) cursor = items[id].getCursorStyle(pos);
-        if (cursor === undefined) cursor = items[id].cursorStyle;
-        if (cursor === undefined) cursor = "default";
-        canvasElement.style.cursor = cursor;
-    }
-}
-
 function canvasKeyDown(e) {
-    // if we want to prevent the Backspace button from moving us to the previous page in the browser history, then we need to catch the KeyDown event (for e.keyIdentifier = "U+0008") and run e.preventDefault()
-    // - the move to the previous page normally happens on the key down event, so if we wait for the key up event it'll be too late!.. (in Chrome, on my Chromebook, at least...)
+    // if we want to prevent the Backspace button from moving us to the previous page in the browser
+    //   history, then we need to catch the KeyDown event (for e.keyIdentifier = "U+0008") and run
+    //   e.preventDefault()
+    // note: the move to the previous page normally happens on the key down event, so if we wait for
+    //   the key up event it'll be too late!.. (in Chrome, on my Chromebook, at least...)
     switch (e.keyIdentifier) {
     case "U+007F": // Delete (alt-backspace)
     case "U+0008": // Backspace
         if (selection.any()) {
             // one or more items selected - delete them!
-            for (var index = selection.count(); --index>=0; ) {
-                items.remove(selection.get(index));
-            }
-            selection.clear();
-            e.preventDefault();
+            selection.delete();
             draw();
+            setCursorStyle(which_item());
+
         }
+        e.preventDefault();
         break;
     case "U+0041": // A
         if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.altGraphKey && !e.metaKey) {
@@ -591,14 +749,56 @@ function canvasKeyDown(e) {
             selection.addAll();
             e.preventDefault();
             draw();
+            setCursorStyle(which_item());
         } else {
             // do nothing..?
         }
+        break;
+    case "U+001B": // Esc
+        if (mouse.dragging) {
+            // cancel the drag
+            mouse.cancelDrag()
+            draw();
+            setCursorStyle(which_item());
+        } else {
+            // do nothing..?
+        }
+        break;
+    case "U+0050": // P
+        if (!e.ctrlKey && !e.shiftKey && e.altKey && !e.altGraphKey && !e.metaKey) {
+            // Alt-P
+            breakpoint()
+        }
+        break;
     }
+}
 
+// go through all the items (in reverse stacking order) to see which, if any, we are over
+function which_item() {
+    for (var index = stack.count(); --index>=0; ) {
+        if (items[stack.get(index)].isMouseOver()) return stack.get(index);
+    }
+    return -1;
+}
+
+function setCursorStyle(id) {
+    if (mouse.dragging) {
+		canvasElement.style.cursor = "move";
+    } else if (id == -1) {
+        // not over any existing items
+		canvasElement.style.cursor = "default";
+    } else {
+        // over an item
+        var cursor;
+        if (items[id].getCursorStyle !== undefined) cursor = items[id].getCursorStyle();
+        if (cursor === undefined) cursor = items[id].cursorStyle;
+        if (cursor === undefined) cursor = "default";
+        canvasElement.style.cursor = cursor;
+    }
 }
 
 function draw() {
+    timings.add("draw - start")
     // start from scratch - clear the whole canvas
     drawingContext.clearRect(0, 0, canvasWidth, canvasHeight);
 
@@ -623,6 +823,7 @@ function draw() {
 
     counterElement.innerHTML = items.length;
     nextIdElement.innerHTML = items.nextItemId;
+    timings.add("draw - end", true)
 }
 
 function init(canvas, counter, nextId) {
@@ -641,19 +842,26 @@ function init(canvas, counter, nextId) {
     drawingContext = canvasElement.getContext("2d");
 
     // listen out for clicks
-    canvasElement.addEventListener("click", canvasClick, false);
+    //canvasElement.addEventListener("click", canvasClick, false);
     // listen out for double-clicks
     canvasElement.addEventListener("dblclick", canvasDoubleClick, false);
-    // listen out for select events (like double-clicking...)
+    // listen out for mouse down events
     canvasElement.addEventListener("mousedown", canvasMouseDown, false);
     // ... and for mouse moves
     canvasElement.addEventListener("mousemove", canvasMouseMove, false);
+    // ... and for mouse up events
+    canvasElement.addEventListener("mouseup", canvasMouseUp, false);
+    // ... and for mouse out events
+    canvasElement.addEventListener("mouseout", canvasMouseOut, false);
     // ... and for key-down events
     // note: the canvas element doesn't take the input focus when clicked on, so therefore it doesn't receive any key events
     // document.body.addEventListener("keydown", bodyKeyDown, false);
     // okay, if you give the canvas element a tabindex, then it can and will take the input focus!..
     // (this information found here: http://stackoverflow.com/a/57332)
     canvasElement.addEventListener("keydown", canvasKeyDown, false);
+    // prevent double-clicks on the canvas from selecting a block of text
+    // (may not work well across browsers..?)
+    canvasElement.onselectstart = function() { return false; }
 
     // check if a counter already exists in the html document, and create one if not
     if (!counter) {
@@ -677,7 +885,7 @@ function init(canvas, counter, nextId) {
     }
 
     // set up a bunch of random circles...
-    for (var i = 0; i < 5; i++) {
+    for (var i = 0; i < 100; i++) {
         items.add(new Circle(Math.floor(Math.random() * canvasWidth), Math.floor(Math.random() * canvasHeight), 10+Math.floor(Math.random()*11)));
     }
   
@@ -685,10 +893,10 @@ function init(canvas, counter, nextId) {
     draw();
 }
  </script>
- <title>Canvas 7</title>
+ <title>Canvas 8</title>
 </head>
 <body>
- <h1>Canvas Development #7</h1>
+ <h1>Canvas Development #8</h1>
  <p>Double-click anywhere in the square to draw a circle!</p>
  <div style="float: left; height: 320px; width: 315px; overflow: auto;">
   <!-- use "overflow: scroll;" to make scroll bars always visible -->
@@ -706,7 +914,10 @@ function init(canvas, counter, nextId) {
     Internally, started change towards a more 'object-oriented' approach... (circles are more object-y; so is the selection list; and the list of items)<br />
     Double-clicking now supported - double click to create a circle, and double-click on a circle to select only it!<br />
     Internally separated out the stacking order from the list of items - hopefully a useful move in the future!..<br />
-    Also started making more use of prototypes... Circles now inherit from a new Item type, and generic Circle functions are contained in the Circle.prototype, rather than in each Circle instance individually (I think this is an efficient move..?)
+    Also started making more use of prototypes... Circles now inherit from a new Item type, and generic Circle functions are contained in the Circle.prototype, rather than in each Circle instance individually (I think this is an efficient move..?)<br />
+    Finally!.. Added the ability to move a circle - or a selection of multiple circles! :-)<br />
+    Internally, created a 'mouse' object to rememebr where the mouse is - for key press events and the like.  This also meant I could tidy a few other bits up and move a couple of functions within the 'mouse' object.<br />
+    Internally, added a 'selected' property to each item - I think this should speed a few things up, as we won't have to scan through the entire list of selected items to work out if something is selected - which we need to do every time we re-draw an item, so dragging (lots of) items around should be smoother...  Also used in Item.isMouseOver, to work out if we need to apply an offset to our known position.
  </p>
  <script>
    init(document.getElementById('myCanvas'), document.getElementById('counter'), document.getElementById('nextId'));

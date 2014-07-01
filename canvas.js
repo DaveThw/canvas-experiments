@@ -64,13 +64,15 @@ function setObjProto(obj, proto) {
 // and finally (for now) in the making-life-a-little-easier group of functions, here's one to call
 // the parent constructor, from within a constructor function for which we set the parent prototype
 // to something specific - for example by calling setObjProto above!..
-function callParentConstructor(me) {
+function callParentConstructor(me, myPrototype) {
+    switch (arguments.length) {
+        case 0: return
+        case 1: myPrototype = Object.getPrototypeOf(me)
+    }
     // Object.getPrototypeOf(Object.getPrototypeOf(me)).constructor.call(me)
-    var that = Object.getPrototypeOf(me)
-    // so here, 'that' is the prototype of the thing that called this function
-    if (that !== Object) {
-        that = Object.getPrototypeOf(that)
-        // now, 'that' is the prototype of the parent of the thing that called this function
+    if (myPrototype !== Object) {
+        var that = Object.getPrototypeOf(myPrototype)
+        // so, 'that' is the prototype of the parent of the thing that called this function
         if (that !== Object) {
             that.constructor.call(me)
         }
@@ -169,10 +171,22 @@ defObjProp(ListOfItems.prototype, "count", function() {
 var items = new ListOfItems()
 
 
-// Add a 'Thing' object - this is the prototype for all Groups and Items
+
+// Add an 'Item' object - this is the prototype for all Groups, Shapes and CompoundItems
 // this will define properties that everything needs - like parent, selected, visible, etc...
 // could also be used to add 'delete' 'select' and so on, that actually call methods on the parent
 //   object - or the selection list within the parent object...
+function Item() {
+    defObjProp(this, "id", null, false, false, true)
+    defObjProp(this, "parent", null, true)
+    defObjProp(this, "selected", false, true)
+    defObjProp(this, "visible", true, true)
+    defObjProp(this, "cursorStyle", "pointer", true)
+}
+defObjProp(Item.prototype, "isSelected", function() {
+    if (current_stack === this) return false
+    return ( (this.parent === current_stack) ? this.selected : (this.parent ? this.parent.isSelected() : false) )
+} )
 
 
 /**************************************************************************************************\
@@ -229,14 +243,12 @@ var items = new ListOfItems()
 \**************************************************************************************************/
 
 function Group() {
+    callParentConstructor(this, Group.prototype)
     defObjProp(this, "length", 0, true)
-    // defObjProp(this, "id", null, true)
-    defObjProp(this, "parent", null, true)
-    defObjProp(this, "selected", false, true)
-    defObjProp(this, "visible", true, true)
     defObjProp(this, "selection", new Selection(this))
-    defObjProp(this, "cursorStyle", "pointer")
+    // this.cursorStyle = "pointer"
 }
+setObjProto(Group, Item)
 defObjProp(Group.prototype, "indexOf", Array.prototype.indexOf )
 defObjProp(Group.prototype, "splice", Array.prototype.splice )
 defObjProp(Group.prototype, "add", function(item) {
@@ -384,10 +396,6 @@ defObjProp(Group.prototype, "draw", function(active) {
         drawingContext.lineWidth = this.selection.line_width
         drawingContext.strokeRect(minX, minY, maxX-minX, maxY-minY)
     }
-} )
-defObjProp(Group.prototype, "isSelected", function() {
-    if (current_stack === this) return false
-    return ( (this.parent === current_stack) ? this.selected : (this.parent ? this.parent.isSelected() : false) )
 } )
 defObjProp(Group.prototype, "whichItem", function(recurse) {
     for (var index=this.length; --index>=0; ) {
@@ -704,21 +712,21 @@ defObjProp(Colour.prototype, "withRelAlpha", function(alpha) {
 \**************************************************************************************************/
 
 
+// Set up the Shape prototype.
+// I think we are unlikely to create any Shapes directly, but we will set this as the __proto__ for
+//   other shape types, so that we can inherit (default) functions and values from Shape
 function Shape() {
+    callParentConstructor(this, Shape.prototype)
     this.x = 0;
     this.y = 0;
     this.colour = new Colour(255, 255, 255)
     this.line_width = 3
     this.line_colour = new Colour(119, 119, 119)
     this.cursorStyle = "pointer"
-    this.visible = true
-    this.selected = false
     this.offset = new Position(0,0)
     this.parent = null
 }
-// Set up the Shape prototype.
-// I think we are unlikely to create any Shapes directly, but we will set this as the __proto__ for
-//   other shape types, so that we can inherit (default) functions and values from Shape
+setObjProto(Shape, Item)
 defObjProp(Shape.prototype, "draw", function(context, colour, line_colour) {
     switch (arguments.length) {
         case 0:  context = drawingContext
@@ -751,7 +759,7 @@ function Rectangle(x, y, width, height, colour, line_width, line_colour) {
         case 5:  line_width = 3;
         case 6:  line_colour = new Colour(119, 119, 119);
     }
-    callParentConstructor(this)
+    callParentConstructor(this, Rectangle.prototype)
     // this.type = "rectangle";
     // this.id = newItemId++;
     this.x = x;
@@ -774,12 +782,12 @@ function Circle(x, y, radius, colour, line_width, line_colour) {
         case 4:  line_width = 3;
         case 5:  line_colour = new Colour(119, 119, 119);
     }
-    // Call the Item constructor function:
-    // Item.call(this)
+    // Call the Shape constructor function:
+    // Shape.call(this)
     //   more generic version:
     // Object.getPrototypeOf(Object.getPrototypeOf(this)).constructor.call(this)
     //   neater version:
-    callParentConstructor(this)
+    callParentConstructor(this, Circle.prototype)
     // this.type = "circle";
     //  could instead use item.constructor.name (which gives "Circle")
     //  or item.constructior === Circle to see if an item is a Circle

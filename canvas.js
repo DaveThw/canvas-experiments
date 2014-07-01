@@ -704,7 +704,7 @@ defObjProp(Colour.prototype, "withRelAlpha", function(alpha) {
 \**************************************************************************************************/
 
 
-function Item() {
+function Shape() {
     this.x = 0;
     this.y = 0;
     this.colour = new Colour(255, 255, 255)
@@ -716,10 +716,10 @@ function Item() {
     this.offset = new Position(0,0)
     this.parent = null
 }
-// Set up the Item prototype.
-// I think we are unlikely to create any Items, but we will set this as the __proto__ for other
-//   item types, so that we can inherit (default) functions and values from Item
-defObjProp(Item.prototype, "draw", function(context, colour, line_colour) {
+// Set up the Shape prototype.
+// I think we are unlikely to create any Shapes directly, but we will set this as the __proto__ for
+//   other shape types, so that we can inherit (default) functions and values from Shape
+defObjProp(Shape.prototype, "draw", function(context, colour, line_colour) {
     switch (arguments.length) {
         case 0:  context = drawingContext
         case 1:  colour = this.colour
@@ -733,10 +733,10 @@ defObjProp(Item.prototype, "draw", function(context, colour, line_colour) {
     
     // not sure what to draw for a 'default' here... maybe a small cross, or something..?
 } )
-defObjProp(Item.prototype, "isMouseOver", function() {
+defObjProp(Shape.prototype, "isMouseOver", function() {
     return ( (this.x == mouse.x) && (this.y == mouse.y) )
 } )
-defObjProp(Item.prototype, "isSelected", function() {
+defObjProp(Shape.prototype, "isSelected", function() {
     return ( (this.parent === current_stack) ? this.selected : (this.parent ? this.parent.isSelected() : false) )
 } )
 
@@ -762,7 +762,7 @@ function Rectangle(x, y, width, height, colour, line_width, line_colour) {
     this.line_width = line_width;
     this.line_colour = line_colour;
 }
-setObjProto(Rectangle, Item)
+setObjProto(Rectangle, Shape)
 
 
 function Circle(x, y, radius, colour, line_width, line_colour) {
@@ -793,7 +793,7 @@ function Circle(x, y, radius, colour, line_width, line_colour) {
     this.line_colour = line_colour;
     this.cursorStyle = "pointer";
 }
-setObjProto(Circle, Item)
+setObjProto(Circle, Shape)
 
 // add some 'methods' to our genreal Circle.prototype
 // this (I think) means that we only really have one instance of each function - it just gets called

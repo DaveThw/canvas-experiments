@@ -169,7 +169,7 @@ var items = new ListOfItems()
 
 
 // Add a 'Thing' object - this is the prototype for all Groups and Items
-// this will define things that everything needs - like parent, selected, visible, etc...
+// this will define properties that everything needs - like parent, selected, visible, etc...
 // could also be used to add 'delete' 'select' and so on, that actually call methods on the parent
 //   object - or the selection list within the parent object...
 
@@ -241,7 +241,7 @@ defObjProp(Group.prototype, "splice", Array.prototype.splice )
 defObjProp(Group.prototype, "add", function(item) {
     // check to see if item is already in this group
     if (item.parent === this) {
-        return this.indexOf(item)
+        return item
     } else {
         if (item.parent !== null && item.parent !== undefined) {
             // item is already somewhere within our global Group tree structure...
@@ -250,17 +250,18 @@ defObjProp(Group.prototype, "add", function(item) {
                 item.parent.remove(item)
             } else {
                 // item is within a compound item (or something else...) - cannot remove it
-                return -1
+                return null
             }
         }
         // add the item to this group
+        item.index = this.length 
         this[this.length++] = item
         item.parent = this
         // add item to the items list... do we still need to keep a separate list of all items..?
         items.add(item)
         // if the item has a create function, call it...
         if (item.create !== undefined) item.create();
-        return this.length
+        return item
     }
 } )
 defObjProp(Group.prototype, "delete", function(item) {
@@ -269,8 +270,10 @@ defObjProp(Group.prototype, "delete", function(item) {
         // can't delete an item from another group!
         return -1
     } else {
-        var index = this.indexOf(item)
-        if (index != -1) {
+        // var index = this.indexOf(item)
+        // if (index != -1) {
+        var index = item.index
+        if (index !== undefined) {
             // mark this item as deleted, in case the base object is referenced from anywhere else
             item.deleted = true
             // if the item has a destroy function, call it...
@@ -278,6 +281,7 @@ defObjProp(Group.prototype, "delete", function(item) {
             items.delete(item)
             // unset the item's parent property, in case the base object is referenced from anywhere
             item.parent = null
+            item.index = undefined
             // finally, remove the item from our group
             this.splice(index, 1)
         }
@@ -303,10 +307,13 @@ defObjProp(Group.prototype, "remove", function(item) {
         // can't remove an item from another group!
         return -1
     } else {
-        var index = this.indexOf(item)
-        if (index != -1) {
+        // var index = this.indexOf(item)
+        // if (index != -1) {
+        var index = item.index
+        if (index !== undefined) {
             // unset the item's parent property, in case the base object is referenced from anywhere
             item.parent = null
+            item.index = undefined
             // remove the item from our group
             this.splice(index, 1)
         }
@@ -479,16 +486,18 @@ defObjProp(Selection.prototype, "delete", function() {
     return true
 } )
 defObjProp(Selection.prototype, "add", function(item) {
-    item.selected = true
-    var index = this.indexOf(item)
-    if (index == -1) {
+//    item.selected = true
+//    var index = this.indexOf(item)
+//    if (index == -1) {
+    if (!item.selected) {
         this[this.length++] = item
+        item.selected = true
         // if the item has a nowSelected() function, call it...
         if (item.nowSelected !== undefined) item.nowSelected();
-        return this.length
+//        return this.length
     } else {
         // don't add item a second time!..
-        return index
+//        return index
     }
 } )
 defObjProp(Selection.prototype, "solo", function(item) {
@@ -499,6 +508,7 @@ defObjProp(Selection.prototype, "solo", function(item) {
             // if the item has a nowUnSelected() function, call it...
             if (this[this.length].nowUnSelected !== undefined) this[this.length].nowUnSelected();
         }
+        // but we want to remove everything from the list
         delete this[this.length]
     }
     // at this point this.length should be 0...
@@ -509,17 +519,18 @@ defObjProp(Selection.prototype, "solo", function(item) {
         // if the item has a nowSelected() function, call it...
         if (item.nowSelected !== undefined) item.nowSelected();
     }
-    return 0
+//    return 0
 } )
 defObjProp(Selection.prototype, "remove", function(item) {
-    var index = this.indexOf(item)
-    if (index != -1) {
+//    var index = this.indexOf(item)
+//    if (index != -1) {
+    if (item.selected) {
         item.selected = false
         // if the item has a nowUnSelected() function, call it...
         if (item.nowUnSelected) item.nowUnSelected();
         this.splice(index, 1)
     }
-    return index
+//    return index
 } )
 defObjProp(Selection.prototype, "addAll", function() {
     // clear the current list, ready to start over (this may be doable faster with this.splice()..?)
@@ -1048,8 +1059,7 @@ function canvasKeyDown(e) {
         if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.altGraphKey && !e.metaKey) {
             // Ctrl-G - group selected items! (if more than one item currently selected...)
             if (current_stack.selection.length > 1) {
-                var new_group = new Group()
-                current_stack.add(new_group)
+                var new_group = current_stack.add(new Group())
                 // now, we really want items in the group to retain the same (relative) stacking
                 //   order as they currently have.  So we can't just iterate through
                 //   current_stack.selection, as this doesn't keep track of stacking order...
@@ -1091,9 +1101,7 @@ function canvasKeyDown(e) {
                         // ideally we want to keep their stacking order in-tact, so start at the
                         //   back and work forwards until there's nothing left in the sub-group...
                         for (; current_stack[index].length>0; ) {
-                            var item = current_stack[index][0]
-                            current_stack.add(item)
-                            current_stack.selection.add(item)
+                            current_stack.selection.add(current_stack.add(current_stack[index][0]))
                         }
                         current_stack.delete(current_stack[index])
                         // note, this will remove this item from current_stack, which will mess up

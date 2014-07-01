@@ -47,6 +47,7 @@ function defObjProp(obj, prop, val, writ, enu, conf) {
     // writable: if true, the value of this property can be changed with an assignment operator
     def.writable = writ
     // configurable: if true, this property can be deleted, and have its type changed
+    //               if false, this property cannot be re-assigned with another call to defObjProp()
     def.configurable = conf
     Object.defineProperty(obj, prop, def)
 }
@@ -253,8 +254,10 @@ defObjProp(Group.prototype, "add", function(item) {
                 return null
             }
         }
+        // keep a reference to this items index within the group
+        // item.index = this.length
+        defObjProp(item, "index", this.length, false, false, true)
         // add the item to this group
-        item.index = this.length
         this[this.length++] = item
         item.parent = this
         // add item to the items list... do we still need to keep a separate list of all items..?
@@ -281,7 +284,8 @@ defObjProp(Group.prototype, "delete", function(item) {
             items.delete(item)
             // unset the item's parent property, in case the base object is referenced from anywhere
             item.parent = null
-            item.index = undefined
+            // item.index = undefined
+            defObjProp(item, "index", undefined, false, false, true)
             // finally, remove the item from our group
             // however, this.splice doesn't work if we are trying to keep track of each item's index
             // this.splice(index, 1)
@@ -290,7 +294,8 @@ defObjProp(Group.prototype, "delete", function(item) {
             // delete this[index]
             for (; ++index<this.length; ) {
                 this[index-1] = this[index]
-                this[index-1].index--
+                // this[index-1].index--
+                defObjProp(this[index-1], "index", index-1, false, false, true)
             }
             delete this[--this.length]
         }
@@ -322,12 +327,14 @@ defObjProp(Group.prototype, "remove", function(item) {
         if (index !== undefined) {
             // unset the item's parent property, in case the base object is referenced from anywhere
             item.parent = null
-            item.index = undefined
+            // item.index = undefined
+            defObjProp(item, "index", undefined, false, false, true)
             // remove the item from our group
             // this.splice(index, 1)
             for (; ++index<this.length; ) {
                 this[index-1] = this[index]
-                this[index-1].index--
+                // this[index-1].index--
+                defObjProp(this[index-1], "index", index-1, false, false, true)
             }
             delete this[--this.length]
         }

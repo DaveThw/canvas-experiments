@@ -531,7 +531,7 @@ defObjProp(Selection.prototype, "remove", function(item) {
         item.selected = false
         // if the item has a nowUnSelected() function, call it...
         if (item.nowUnSelected) item.nowUnSelected();
-        this.splice(index, 1)
+        this.splice(this.indexOf(item), 1)
     }
 //    return index
 } )

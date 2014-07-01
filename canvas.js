@@ -31,24 +31,25 @@ defObjProp(timings, "add", function (label) {
 
 // to make life a little easier, here's a function to add a property (with optional flags) to an
 // object
-function defObjProp(obj, prop, val, writ, enu, conf) {
+function defObjProp(obj, prop, val, writ, conf, enu) {
     switch (arguments.length) {
         case 2:  val = undefined
         case 3:  writ = false
-        case 4:  enu = false
-        case 5:  conf = false
+        case 4:  conf = false
+        case 5:  enu = false
     }
     var def = defObjProp.def || ( defObjProp.def = {} )
-    // value: the value of the property! can be any valid Javascript value (number, object,
-    //   function, etc)
+    //  value: the value of the property! can be any valid Javascript value (number, object,
+    //         function, etc)
     def.value = val
-    // enumerable: if true, this property will show up during a "for (x in y)" loop
-    def.enumerable = enu
-    // writable: if true, the value of this property can be changed with an assignment operator
+    //  writable: if true, the value of this property can be changed with an assignment operator
     def.writable = writ
-    // configurable: if true, this property can be deleted, and have its type changed
-    //               if false, this property cannot be re-assigned with another call to defObjProp()
+    //  configurable: if true, this property can be deleted, and have its type changed
+    //                if false, this property cannot be re-assigned with another call to
+    //                  defObjProp()
     def.configurable = conf
+    //  enumerable: if true, this property will show up during a "for (x in y)" loop
+    def.enumerable = enu
     Object.defineProperty(obj, prop, def)
 }
 
@@ -129,7 +130,7 @@ defObjProp(ListOfItems.prototype, "add", function(item) {
     // if it is moved form one group to another... depending how we impliment that feature!..)
     if (!item.id) {
         // item.id = this.nextItemId++
-        defObjProp(item, "id", this.nextItemId++, false, false, true)
+        defObjProp(item, "id", this.nextItemId++, false, true)
         this[item.id] = item
         // stack.add(item.id)
         // stack.add(item)
@@ -152,7 +153,7 @@ defObjProp(ListOfItems.prototype, "delete", function(item) {
     // stack.remove(item)
     if (this[item.id] !== undefined) {
         delete this[item.id]
-        defObjProp(item, "id", null, false, false, true)
+        defObjProp(item, "id", null, false, true)
         // item.id = null
         return this.length--
     } else {
@@ -177,7 +178,7 @@ var items = new ListOfItems()
 // could also be used to add 'delete' 'select' and so on, that actually call methods on the parent
 //   object - or the selection list within the parent object...
 function Item() {
-    defObjProp(this, "id", null, false, false, true)
+    defObjProp(this, "id", null, false, true)
     defObjProp(this, "parent", null, true)
     defObjProp(this, "selected", false, true)
     defObjProp(this, "visible", true, true)
@@ -268,7 +269,7 @@ defObjProp(Group.prototype, "add", function(item) {
         }
         // keep a reference to this items index within the group
         // item.index = this.length
-        defObjProp(item, "index", this.length, false, false, true)
+        defObjProp(item, "index", this.length, false, true)
         // add the item to this group
         this[this.length++] = item
         item.parent = this
@@ -297,7 +298,7 @@ defObjProp(Group.prototype, "delete", function(item) {
             // unset the item's parent property, in case the base object is referenced from anywhere
             item.parent = null
             // item.index = undefined
-            defObjProp(item, "index", undefined, false, false, true)
+            defObjProp(item, "index", undefined, false, true)
             // finally, remove the item from our group
             // however, this.splice doesn't work if we are trying to keep track of each item's index
             // this.splice(index, 1)
@@ -307,7 +308,7 @@ defObjProp(Group.prototype, "delete", function(item) {
             for (; ++index<this.length; ) {
                 this[index-1] = this[index]
                 // this[index-1].index--
-                defObjProp(this[index-1], "index", index-1, false, false, true)
+                defObjProp(this[index-1], "index", index-1, false, true)
             }
             delete this[--this.length]
         }
@@ -340,13 +341,13 @@ defObjProp(Group.prototype, "remove", function(item) {
             // unset the item's parent property, in case the base object is referenced from anywhere
             item.parent = null
             // item.index = undefined
-            defObjProp(item, "index", undefined, false, false, true)
+            defObjProp(item, "index", undefined, false, true)
             // remove the item from our group
             // this.splice(index, 1)
             for (; ++index<this.length; ) {
                 this[index-1] = this[index]
                 // this[index-1].index--
-                defObjProp(this[index-1], "index", index-1, false, false, true)
+                defObjProp(this[index-1], "index", index-1, false, true)
             }
             delete this[--this.length]
         }

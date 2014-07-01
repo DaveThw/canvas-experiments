@@ -254,7 +254,7 @@ defObjProp(Group.prototype, "add", function(item) {
             }
         }
         // add the item to this group
-        item.index = this.length 
+        item.index = this.length
         this[this.length++] = item
         item.parent = this
         // add item to the items list... do we still need to keep a separate list of all items..?
@@ -283,7 +283,16 @@ defObjProp(Group.prototype, "delete", function(item) {
             item.parent = null
             item.index = undefined
             // finally, remove the item from our group
-            this.splice(index, 1)
+            // however, this.splice doesn't work if we are trying to keep track of each item's index
+            // this.splice(index, 1)
+            // this loop should do the same job - don't know if it'll be faster or slower..?
+            // don't need to delete the 'original' item, as it's about to be overwritten!
+            // delete this[index]
+            for (; ++index<this.length; ) {
+                this[index-1] = this[index]
+                this[index-1].index--
+            }
+            delete this[--this.length]
         }
         // if this leaves us with nothing in this group, we should also delete ourselves
         // (and if we are currently editing the group, move up a level...)
@@ -315,7 +324,12 @@ defObjProp(Group.prototype, "remove", function(item) {
             item.parent = null
             item.index = undefined
             // remove the item from our group
-            this.splice(index, 1)
+            // this.splice(index, 1)
+            for (; ++index<this.length; ) {
+                this[index-1] = this[index]
+                this[index-1].index--
+            }
+            delete this[--this.length]
         }
         return index
     }

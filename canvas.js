@@ -471,7 +471,8 @@ defObjProp(Selection.prototype, "get", function(index) {
 } )
 defObjProp(Selection.prototype, "clear", function() {
     for (; this.length>0; ) {
-        this[--this.length].selected = false
+        this.length--
+        this[this.length].selected = false
         // if the item has a nowUnSelected() function, call it...
         if (this[this.length].nowUnSelected !== undefined) this[this.length].nowUnSelected();
         delete this[this.length]
@@ -480,7 +481,8 @@ defObjProp(Selection.prototype, "clear", function() {
 } )
 defObjProp(Selection.prototype, "delete", function() {
     for (; this.length>0; ) {
-        this[--this.length].parent.delete(this[this.length])
+        this.length--
+        this[this.length].parent.delete(this[this.length])
         delete this[this.length]
     }
     return true
@@ -502,8 +504,9 @@ defObjProp(Selection.prototype, "add", function(item) {
 } )
 defObjProp(Selection.prototype, "solo", function(item) {
     for (; this.length>0; ) {
+        this.length--
         // we only want to 'un-select' everything other than the item given to us
-        if (this[--this.length] !== item) {
+        if (this[this.length] !== item) {
             this[this.length].selected = false
             // if the item has a nowUnSelected() function, call it...
             if (this[this.length].nowUnSelected !== undefined) this[this.length].nowUnSelected();

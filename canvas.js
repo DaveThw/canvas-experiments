@@ -73,10 +73,10 @@ function callParentConstructor(me, myPrototype) {
     // Check to see if we've been passed a function (instead of its prototype)
     if (isFunction(myPrototype)) myPrototype = myPrototype.prototype
     // Object.getPrototypeOf(Object.getPrototypeOf(me)).constructor.call(me)
-    if (myPrototype !== Object) {
+    if (myPrototype !== Object.prototype) {
         var that = Object.getPrototypeOf(myPrototype)
         // so, 'that' is the prototype of the parent of the thing that called this function
-        if (that !== Object) {
+        if (that !== Object.prototype) {
             that.constructor.call(me)
         }
     }

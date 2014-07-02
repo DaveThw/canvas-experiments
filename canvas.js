@@ -1204,7 +1204,7 @@ function setCursorStyle(item) {
     }
     if (canvasElement.style.cursor != cursor) canvasElement.style.cursor = cursor;
 
-    thisIdElement.innerHTML = (item ? item.id : -1)
+    thisIdElement.innerHTML = (item ? item.id+" ("+item.constructor.name+")" : "&lt;none&gt;")
 }
 
 function draw() {

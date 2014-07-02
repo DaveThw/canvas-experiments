@@ -70,6 +70,8 @@ function callParentConstructor(me, myPrototype) {
         case 0: return
         case 1: myPrototype = Object.getPrototypeOf(me)
     }
+    // Check to see if we've been passed a function (instead of its prototype)
+    if (isFunction(myPrototype)) myPrototype = myPrototype.prototype
     // Object.getPrototypeOf(Object.getPrototypeOf(me)).constructor.call(me)
     if (myPrototype !== Object) {
         var that = Object.getPrototypeOf(myPrototype)
@@ -80,6 +82,13 @@ function callParentConstructor(me, myPrototype) {
     }
 }
 
+// based on results on my browser from here:
+// http://jsperf.com/alternative-isfunction-implementations/9
+// (linked from the one of the comments here:
+//  http://stackoverflow.com/questions/5999998/how-can-i-check-if-a-javascript-variable-is-function-type#comment11456457_7356528 )
+function isFunction(obj) {
+    return typeof(obj) === 'function';
+}
 
 
 

@@ -10,9 +10,7 @@ var canvasHeight = 300;
 // references to items in the HTML DOM
 var canvasElement;
 var drawingContext;
-var counterElement;
-var nextIdElement;
-var thisIdElement;
+var status = {};
 
 var timings = [ {label: "init", time: new Date().getTime()} ];
 defObjProp(timings, "add", function (label) {
@@ -1052,6 +1050,7 @@ function canvasDoubleClick(e) {
             switch (this_item.constructor) {
                 case Group:
                     current_stack = this_item
+                    this_item = which_item()
                     break;
             }
         } else {
@@ -1222,7 +1221,7 @@ function setCursorStyle(item) {
     }
     if (canvasElement.style.cursor != cursor) canvasElement.style.cursor = cursor;
 
-    thisIdElement.innerHTML = (item ? item.id+" ("+item.constructor.name+")" : "&lt;none&gt;")
+    status['thisId'].innerHTML = (item ? item.id+" ("+item.constructor.name+")" : "&lt;none&gt;")
 }
 
 function draw() {
@@ -1245,8 +1244,10 @@ function draw() {
 
     stack.draw(false)
 
-    counterElement.innerHTML = Item.count;
-    nextIdElement.innerHTML = Item.nextItemId;
+    status['totalCount'].innerHTML = Item.count
+    status['nextId'].innerHTML = Item.nextItemId
+    status['groupCount'].innerHTML = current_stack.length
+    status['selectionCount'].innerHTML = current_stack.selection.length
     timings.add("draw - end", true)
 }
 
@@ -1288,24 +1289,38 @@ function init() {
     canvasElement.onselectstart = function() { return false; }
 
     // check if a counter already exists in the html document, and create one if not
-    counterElement = document.getElementById('counter');
-    if (!counterElement) {
-        counterElement = document.createElement("p");
-	    document.body.appendChild(counterElement);
+    status['totalCount'] = document.getElementById('totalCount');
+    if (!status['totalCount']) {
+        status['totalCount'] = document.createElement("p");
+	    document.body.appendChild(status['totalCount']);
     }
 
     // check if a 'next id' already exists in the html document, and create one if not
-    nextIdElement = document.getElementById('nextId');
-    if (!nextIdElement) {
-        nextIdElement = document.createElement("p");
-	    document.body.appendChild(nextIdElement);
+    status['nextId'] = document.getElementById('nextId');
+    if (!status['nextId']) {
+        status['nextId'] = document.createElement("p");
+	    document.body.appendChild(status['nextId']);
     }
 
-    // check if a 'next id' already exists in the html document, and create one if not
-    thisIdElement = document.getElementById('thisId');
-    if (!thisIdElement) {
-        thisIdElement = document.createElement("p");
-	    document.body.appendChild(thisIdElement);
+    // check if a 'this id' already exists in the html document, and create one if not
+    status['thisId'] = document.getElementById('thisId');
+    if (!status['thisId']) {
+        status['thisId'] = document.createElement("p");
+	    document.body.appendChild(status['thisId']);
+    }
+
+    // check if a counter already exists in the html document, and create one if not
+    status['groupCount'] = document.getElementById('groupCount');
+    if (!status['groupCount']) {
+        status['groupCount'] = document.createElement("p");
+	    document.body.appendChild(status['groupCount']);
+    }
+
+    // check if a counter already exists in the html document, and create one if not
+    status['selectionCount'] = document.getElementById('selectionCount');
+    if (!status['selectionCount']) {
+        status['selectionCount'] = document.createElement("p");
+	    document.body.appendChild(status['selectionCount']);
     }
 
     // set up a bunch of random circles...

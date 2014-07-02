@@ -12,9 +12,11 @@
   <!-- It looks like, in Chrome on my Chromebook, the width of the parent div needs to be at least 15px greater than the canvas, and the height at least 20px greater, for the scroll bars to deactivate -->
   <canvas id="myCanvas" width="100" height="100"></canvas>
  </div>
- <p>Number of items: <span id="counter">-1</span><br />
+ <p>Total number of items: <span id="totalCount">-1</span><br />
     Next unique item id: <span id="nextId">-1</span><br />
     This item id: <span id="thisId">-1</span><br />
+    Number of items in this group: <span id="groupCount">-1</span><br />
+    Number of items in current selection: <span id="selectionCount">-1</span><br />
     Click on a circle to select it, shift-click to add to your selection, or control-click to toggle selection.<br />
     Press backsapce/delete to delete selected circles!<br />
     (note: if nothing is selected, then backspace will do it's default action, which is to go to the previous page in your browser's history...)<br />

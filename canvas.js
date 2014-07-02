@@ -131,21 +131,14 @@ function isFunction(obj) {
 //           their itemId - like a line linking two items together...
 // Done! - although more work on this idea still to be done...
 function ListOfItems() {
-    defObjProp(this, "nextItemId", 0, true)
     defObjProp(this, "length", 0, true)
 }
 defObjProp(ListOfItems.prototype, "add", function(item) {
-    // check if item already has an id... (this function might get called a second time on an item
-    // if it is moved form one group to another... depending how we impliment that feature!..)
-    if (!item.id) {
-        // item.id = this.nextItemId++
-        defObjProp(item, "id", this.nextItemId++, false, true)
+    // check if we already know about this item
+    if (!this[item.id]) {
         this[item.id] = item
-        // stack.add(item.id)
-        // stack.add(item)
         this.length++
     }
-    return item.id
 } )
 /*
 defObjProp(ListOfItems.prototype, "remove", function(id) {
@@ -160,9 +153,8 @@ defObjProp(ListOfItems.prototype, "remove", function(id) {
 */
 defObjProp(ListOfItems.prototype, "delete", function(item) {
     // stack.remove(item)
-    if (this[item.id] !== undefined) {
+    if (item.id !== undefined && this[item.id] !== undefined) {
         delete this[item.id]
-        defObjProp(item, "id", null, false, true)
         // item.id = null
         return this.length--
     } else {
@@ -187,12 +179,24 @@ var items = new ListOfItems()
 // could also be used to add 'delete' 'select' and so on, that actually call methods on the parent
 //   object - or the selection list within the parent object...
 function Item() {
-    defObjProp(this, "id", null, false, true)
+    defObjProp(this, "id", Item.nextItemId++, false, true)
     defObjProp(this, "parent", null, false, true)
     defObjProp(this, "selected", false, true)
     defObjProp(this, "visible", true, true)
     defObjProp(this, "cursorStyle", "pointer", true)
+    // add item to the items list... do we still need to keep a separate list of all items..?
+    if (items) items.add(this)
+    defObjProp(Item, "count", ++Item.count, false, true)
 }
+defObjProp(Item, "nextItemId", 0, true)
+defObjProp(Item, "count", 0, false, true)
+defObjProp(Item, "delete", function(item) {
+    if (items) items.delete(item)
+    // mark this item as deleted, in case the base object is referenced from anywhere else
+    defObjProp(item, "deleted", true)
+    defObjProp(item, "id", undefined, false, true)
+    defObjProp(Item, "count", --Item.count, false, true)
+} )
 defObjProp(Item.prototype, "isSelected", function() {
     if (current_stack === this) return false
     return ( (this.parent === current_stack) ? this.selected : (this.parent ? this.parent.isSelected() : false) )
@@ -276,15 +280,13 @@ defObjProp(Group.prototype, "add", function(item) {
                 return null
             }
         }
-        // keep a reference to this items index within the group
+        // keep a reference to this item's index within the group
         // item.index = this.length
         defObjProp(item, "index", this.length, false, true)
         // add the item to this group
         this[this.length++] = item
         // item.parent = this
         defObjProp(item, "parent", this, false, true)
-        // add item to the items list... do we still need to keep a separate list of all items..?
-        items.add(item)
         // if the item has a create function, call it...
         if (item.create !== undefined) item.create();
         return item
@@ -300,11 +302,10 @@ defObjProp(Group.prototype, "delete", function(item) {
         // if (index != -1) {
         var index = item.index
         if (index !== undefined) {
-            // mark this item as deleted, in case the base object is referenced from anywhere else
-            item.deleted = true
             // if the item has a destroy function, call it...
             if (item.destroy !== undefined) item.destroy();
-            items.delete(item)
+            // do any generic Item-relative deleting (set the 'deleted' flag, unset the id, etc...)
+            Item.delete(item)
             // unset the item's parent property, in case the base object is referenced from anywhere
             // item.parent = null
             defObjProp(item, "parent", undefined, false, true)
@@ -446,7 +447,6 @@ defObjProp(Group.prototype, "moveAndResetOffset", function(offset) {
 
 // 'stack' is the variable that always points to the top level group
 var stack = new Group()
-items.add(stack)
 // 'current_stack' points to the group that we are currently viewing/editing
 var current_stack = stack
 
@@ -805,6 +805,7 @@ function Circle(x, y, radius, colour, line_width, line_colour) {
     //  or item.constructior === Circle to see if an item is a Circle
     // this.id = newItemId++;
     //  now the id is initialised by items.add()...
+    //  and now the id is initialied by the Item constructor function
     this.x = x;
     this.y = y;
     this.radius = radius;
@@ -1229,8 +1230,8 @@ function draw() {
 
     stack.draw(false)
 
-    counterElement.innerHTML = items.length;
-    nextIdElement.innerHTML = items.nextItemId;
+    counterElement.innerHTML = Item.count;
+    nextIdElement.innerHTML = Item.nextItemId;
     timings.add("draw - end", true)
 }
 

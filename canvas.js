@@ -188,7 +188,7 @@ var items = new ListOfItems()
 //   object - or the selection list within the parent object...
 function Item() {
     defObjProp(this, "id", null, false, true)
-    defObjProp(this, "parent", null, true)
+    defObjProp(this, "parent", null, false, true)
     defObjProp(this, "selected", false, true)
     defObjProp(this, "visible", true, true)
     defObjProp(this, "cursorStyle", "pointer", true)
@@ -266,7 +266,7 @@ defObjProp(Group.prototype, "add", function(item) {
     if (item.parent === this) {
         return item
     } else {
-        if (item.parent !== null && item.parent !== undefined) {
+        if (item.parent) {
             // item is already somewhere within our global Group tree structure...
             if (item.parent.constructor === Group) {
                 // item is already in another group - remove it from there...
@@ -281,7 +281,8 @@ defObjProp(Group.prototype, "add", function(item) {
         defObjProp(item, "index", this.length, false, true)
         // add the item to this group
         this[this.length++] = item
-        item.parent = this
+        // item.parent = this
+        defObjProp(item, "parent", this, false, true)
         // add item to the items list... do we still need to keep a separate list of all items..?
         items.add(item)
         // if the item has a create function, call it...
@@ -305,7 +306,8 @@ defObjProp(Group.prototype, "delete", function(item) {
             if (item.destroy !== undefined) item.destroy();
             items.delete(item)
             // unset the item's parent property, in case the base object is referenced from anywhere
-            item.parent = null
+            // item.parent = null
+            defObjProp(item, "parent", undefined, false, true)
             // item.index = undefined
             defObjProp(item, "index", undefined, false, true)
             // finally, remove the item from our group
@@ -348,7 +350,8 @@ defObjProp(Group.prototype, "remove", function(item) {
         var index = item.index
         if (index !== undefined) {
             // unset the item's parent property, in case the base object is referenced from anywhere
-            item.parent = null
+            // item.parent = null
+            defObjProp(item, "parent", undefined, false, true)
             // item.index = undefined
             defObjProp(item, "index", undefined, false, true)
             // remove the item from our group
@@ -734,7 +737,6 @@ function Shape() {
     this.line_colour = new Colour(119, 119, 119)
     this.cursorStyle = "pointer"
     this.offset = new Position(0,0)
-    this.parent = null
 }
 setObjProto(Shape, Item)
 defObjProp(Shape.prototype, "draw", function(context, colour, line_colour) {

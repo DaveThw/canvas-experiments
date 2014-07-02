@@ -303,6 +303,14 @@ defObjProp(Group.prototype, "delete", function(item) {
         var index = item.index
         if (index !== undefined) {
             // if the item has a destroy function, call it...
+            // note: if item is a group, then destroying the group will delete all if the items
+            //   within it (desired behaviour).  When the last item gets deleted, it will notice
+            //   that it is the last item in the group, and delete the group (normally desired
+            //   behaviour).  However this means that when this call returns, the 'item' that we are
+            //   currently in the process of deleting, will have already been deleted (but only if
+            //   this item is a group).  Therefore, when we update out list in the loop below, we
+            //   wind up removing another item from the group, making it into a bit of a ghost!
+            // this is now fixed further down...
             if (item.destroy !== undefined) item.destroy();
             // do any generic Item-relative deleting (set the 'deleted' flag, unset the id, etc...)
             Item.delete(item)
@@ -327,11 +335,15 @@ defObjProp(Group.prototype, "delete", function(item) {
         // if this leaves us with nothing in this group, we should also delete ourselves
         // (and if we are currently editing the group, move up a level...)
         // - but we shouldn't delete the 'root' group...
+        // more specifically, if we are editing a group and delete the final item from the group,
+        //   then we should (try to) move up a level and delete the now-empty group.  However, if
+        //   we are acually in the process of deleting a sub-group (ie we are editing the parent of
+        //   this group, or some other ancestor), then we should neither mess about with
+        //   current_stack, nor attempt to delete ourselves (as the iteration process will do that
+        //   just after we leave this call)
         if (this.length == 0) {
-            if (current_stack === this) {
-                current_stack = (this.parent ? this.parent : this)
-            }
-            if (current_stack !== this) {
+            if (current_stack === this && this.parent) {
+                current_stack = this.parent
                 this.parent.delete(this)
             }
         }

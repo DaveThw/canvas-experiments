@@ -302,6 +302,8 @@ defObjProp(Group.prototype, "delete", function(item) {
         // if (index != -1) {
         var index = item.index
         if (index !== undefined) {
+            // unselect this item, if necessary
+            if (item.selected) this.selection.remove(item)
             // if the item has a destroy function, call it...
             // note: if item is a group, then destroying the group will delete all if the items
             //   within it (desired behaviour).  When the last item gets deleted, it will notice
@@ -1152,7 +1154,8 @@ function canvasKeyDown(e) {
                 // now, we really want items in the group to retain the same (relative) stacking
                 // order as they currently have.  So we can't just iterate through
                 // current_stack[index].selection, as this doesn't keep track of stacking order...
-                for (var index=0; index<current_stack.length; index++) {
+                var length = current_stack.length
+                for (var index=0; index<length; index++) {
                     if (current_stack[index].selected && (current_stack[index].constructor === Group) ) {
                         // pop all item items out of this sub-group, into the current stack level
                         // ideally we want to keep their stacking order in-tact, so start at the
@@ -1163,7 +1166,7 @@ function canvasKeyDown(e) {
                         current_stack.delete(current_stack[index])
                         // note, this will remove this item from current_stack, which will mess up
                         // our iteration, unless be do this...
-                        index--
+                        index--; length--
                     }
                 }
             }

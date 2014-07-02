@@ -39,15 +39,15 @@ function defObjProp(obj, prop, val, writ, conf, enu) {
         case 5:  enu = false
     }
     var def = defObjProp.def || ( defObjProp.def = {} )
+    def.value = val
     //  value: the value of the property! can be any valid Javascript value (number, object,
     //         function, etc)
-    def.value = val
-    //  writable: if true, the value of this property can be changed with an assignment operator
     def.writable = writ
+    //  writable: if true, the value of this property can be changed with an assignment operator
+    def.configurable = conf
     //  configurable: if true, this property can be deleted, and have its type changed
     //                if false, this property cannot be re-assigned with another call to
     //                  defObjProp()
-    def.configurable = conf
     //  enumerable: if true, this property will show up during a "for (x in y)" loop
     def.enumerable = enu
     Object.defineProperty(obj, prop, def)

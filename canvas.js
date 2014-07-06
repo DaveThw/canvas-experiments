@@ -46,8 +46,29 @@ function defObjProp(obj, prop, val, writ, conf, enu) {
     //  configurable: if true, this property can be deleted, and have its type changed
     //                if false, this property cannot be re-assigned with another call to
     //                  defObjProp()
-    //  enumerable: if true, this property will show up during a "for (x in y)" loop
     def.enumerable = enu
+    //  enumerable: if true, this property will show up during a "for (x in y)" loop
+    Object.defineProperty(obj, prop, def)
+}
+
+function defObjPropSetGet(obj, prop, set, get, conf, enu) {
+    switch (arguments.length) {
+        case 2:  set = undefined
+        case 3:  get = undefined
+        case 4:  conf = false
+        case 5:  enu = false
+    }
+    var def = defObjPropSetGet.def || ( defObjPropSetGet.def = {} )
+    def.set = set
+    //  set: a function that will set the value of this property
+    def.get = get
+    //  get: a function that will return the value of this property
+    def.configurable = conf
+    //  configurable: if true, this property can be deleted, and have its type changed
+    //                if false, this property cannot be re-assigned with another call to
+    //                  defObjProp()
+    def.enumerable = enu
+    //  enumerable: if true, this property will show up during a "for (x in y)" loop
     Object.defineProperty(obj, prop, def)
 }
 
@@ -696,6 +717,35 @@ setObjProto(Mouse, Position)
 var mouse = new Mouse()
 
 
+
+
+/**************************************************************************************************\
+*                                     'fake variable' objects                                      *
+\**************************************************************************************************/
+
+
+// This is a form of an integer 'variable'
+// it can either be an integer, or 'undefined'
+// its value can be changed with x.set(2) (note: whatever is passed with get convered to an integer
+//   using a ~~ operation - seems to be speediest across most browsers:
+//   http://jsperf.com/performance-of-parseint/42 )
+// its value can be referred to with just x (or x.get() if you prefer, or x.value)
+// the main reason I've made this is that it is an object, so can be 'copied' by reference and
+//   linked from multiple places - each 'copy' will point to the same original object, and therefore
+//   keep up with any changes made.
+function IntVal(val) {
+    this.set(val)
+}
+defObjProp(IntVal.prototype, "set", function(val) {
+    defObjProp(this, "value", (val!==undefined ? ~~val : val), false, true)
+} )
+defObjProp(IntVal.prototype, "valueOf", function() {
+    return this.value
+} )
+defObjProp(IntVal.prototype, "get", IntVal.prototype.valueOf)
+defObjProp(IntVal.prototype, "toString", function() {
+    return (this.value!==undefined ? '' + this.value : '')
+} )
 
 
 

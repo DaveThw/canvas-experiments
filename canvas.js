@@ -917,7 +917,7 @@ defObjProp(Circle.prototype, "isMouseOver", function() {
     return ( (Math.pow(this.getX() - mouse.x,2) + Math.pow(this.getY() - mouse.y,2)) <= Math.pow(this.radius,2) )
 } )
 
-defObjProp(Selection.prototype, "moveAndResetDragOffset", function(offset) {
+defObjProp(Circle.prototype, "moveAndResetDragOffset", function(offset) {
     this.x.set(this.x + this.dragOffset.x)
     this.y.set(this.y + this.dragOffset.y)
     this.dragOffset = offset

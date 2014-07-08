@@ -283,7 +283,7 @@ function Group() {
 }
 setObjProto(Group, Item)
 defObjProp(Group.prototype, "indexOf", Array.prototype.indexOf )
-defObjProp(Group.prototype, "splice", Array.prototype.splice )
+// defObjProp(Group.prototype, "splice", Array.prototype.splice )
 defObjProp(Group.prototype, "add", function(item) {
     // check to see if item is already in this group
     if (item.parent === this) {
@@ -525,11 +525,11 @@ var stack = new function() {
 
 // 'selection' Object, for keeping track of which items are currently selected
 function Selection(parent) {
-    defObjProp(this, "length", 0, true)
+    defObjProp(this, "length", 0, false, true)
     defObjProp(this, "parent", parent)
 }
 defObjProp(Selection.prototype, "indexOf", Array.prototype.indexOf )
-defObjProp(Selection.prototype, "splice", Array.prototype.splice )
+// defObjProp(Selection.prototype, "splice", Array.prototype.splice )
 defObjProp(Selection.prototype, "colour", null, true)
 defObjProp(Selection.prototype, "line_width", 1, true)
 defObjProp(Selection.prototype, "line_colour", new Colour(255,0,0), true)
@@ -546,7 +546,7 @@ defObjProp(Selection.prototype, "get", function(index) {
 } )
 defObjProp(Selection.prototype, "clear", function() {
     for (; this.length>0; ) {
-        this.length--
+        defObjProp(this, "length", this.length-1, false, true)
         this[this.length].selected = false
         // if the item has a nowUnSelected() function, call it...
         if (this[this.length].nowUnSelected !== undefined) this[this.length].nowUnSelected();
@@ -556,7 +556,7 @@ defObjProp(Selection.prototype, "clear", function() {
 } )
 defObjProp(Selection.prototype, "delete", function() {
     for (; this.length>0; ) {
-        this.length--
+        defObjProp(this, "length", this.length-1, false, true)
         this[this.length].parent.delete(this[this.length])
         delete this[this.length]
     }
@@ -567,7 +567,8 @@ defObjProp(Selection.prototype, "add", function(item) {
 //    var index = this.indexOf(item)
 //    if (index == -1) {
     if (!item.selected) {
-        this[this.length++] = item
+        this[this.length] = item
+        defObjProp(this, "length", this.length+1, false, true)
         item.selected = true
         // if the item has a nowSelected() function, call it...
         if (item.nowSelected !== undefined) item.nowSelected();
@@ -579,7 +580,7 @@ defObjProp(Selection.prototype, "add", function(item) {
 } )
 defObjProp(Selection.prototype, "solo", function(item) {
     for (; this.length>0; ) {
-        this.length--
+        defObjProp(this, "length", this.length-1, false, true)
         // we only want to 'un-select' everything other than the item given to us
         if (this[this.length] !== item) {
             this[this.length].selected = false
@@ -590,7 +591,8 @@ defObjProp(Selection.prototype, "solo", function(item) {
         delete this[this.length]
     }
     // at this point this.length should be 0...
-    this[this.length++] = item
+    this[this.length] = item
+    defObjProp(this, "length", this.length+1, false, true)
     // if the item was previous not selected, mark is as now selected
     if (!item.selected) {
         item.selected = true
@@ -606,14 +608,20 @@ defObjProp(Selection.prototype, "remove", function(item) {
         item.selected = false
         // if the item has a nowUnSelected() function, call it...
         if (item.nowUnSelected) item.nowUnSelected();
-        this.splice(this.indexOf(item), 1)
+        // this.splice(this.indexOf(item), 1)
+        for (var index = this.indexOf(item); ++index<this.length; ) {
+            this[index-1] = this[index]
+        }
+        defObjProp(this, "length", this.length-1, false, true)
+        delete this[this.length]
     }
 //    return index
 } )
 defObjProp(Selection.prototype, "addAll", function() {
     // clear the current list, ready to start over (this may be doable faster with this.splice()..?)
     for (; this.length>0; ) {
-        delete this[--this.length]
+        defObjProp(this, "length", this.length-1, false, true)
+        delete this[this.length]
     }
     for (var index in this.parent) {
         if (!this.parent[index].selected) {
@@ -621,7 +629,8 @@ defObjProp(Selection.prototype, "addAll", function() {
             // if the item has a nowSelected() function, call it...
             if (this.parent[index].nowSelected) this.parent[index].nowSelected();
         }
-        this[this.length++] = this.parent[index]
+        this[this.length] = this.parent[index]
+        defObjProp(this, "length", this.length+1, false, true)
     }
     return true
 } )

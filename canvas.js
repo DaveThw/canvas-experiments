@@ -198,11 +198,11 @@ var items = new ListOfItems()
 // could also be used to add 'delete' 'select' and so on, that actually call methods on the parent
 //   object - or the selection list within the parent object...
 function Item() {
-    defObjProp(this, "id", Item.nextItemId++, false, true)
+    defObjProp(this, "id", Item.nextItemId++, false, true, true)
     defObjProp(this, "parent", null, false, true)
     defObjProp(this, "selected", false, true)
-    defObjProp(this, "visible", true, true)
-    defObjProp(this, "cursorStyle", "pointer", true)
+    defObjProp(this, "visible", true, true, true, true)
+    defObjProp(this, "cursorStyle", "pointer", true, true, true)
     // add item to the items list... do we still need to keep a separate list of all items..?
     if (items) items.add(this)
     defObjProp(Item, "count", ++Item.count, false, true)

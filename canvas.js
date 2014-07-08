@@ -315,6 +315,8 @@ defObjProp(Group.prototype, "add", function(item) {
         defObjProp(item, "parent", this, false, true)
         // if the item has a create function, call it...
         if (item.create !== undefined) item.create();
+        // mark our bounds as (potentially) out of date
+        this.bounds.minX.set()
         return item
     }
 } )
@@ -373,6 +375,9 @@ defObjProp(Group.prototype, "delete", function(item) {
                 current_stack = this.parent
                 this.parent.delete(this)
             }
+        } else {
+            // mark our bounds as (potentially) out of date
+            this.bounds.minX.set()
         }
         return index
     }
@@ -401,6 +406,8 @@ defObjProp(Group.prototype, "remove", function(item) {
             }
             defObjProp(this, "length", this.length-1, false, true)
             delete this[this.length]
+            // mark our bounds as (potentially) out of date
+            this.bounds.minX.set()
         }
         return index
     }

@@ -902,7 +902,7 @@ defObjProp(Circle.prototype, "draw", function(context, colour, line_colour) {
     }
     
     context.beginPath()
-    context.arc(this.x+this.dragOffset.x, this.y+this.dragOffset.y, this.radius, 0, Math.PI*2, false)
+    context.arc(this.getX(), this.getY(), this.radius, 0, Math.PI*2, false)
     context.closePath()
     
     context.fillStyle = colour.toString()
@@ -914,7 +914,20 @@ defObjProp(Circle.prototype, "draw", function(context, colour, line_colour) {
 } )
 
 defObjProp(Circle.prototype, "isMouseOver", function() {
-    return ( (Math.pow(this.x + this.dragOffset.x - mouse.x,2) + Math.pow(this.y + this.dragOffset.y - mouse.y,2)) <= Math.pow(this.radius,2) )
+    return ( (Math.pow(this.getX() - mouse.x,2) + Math.pow(this.getY() - mouse.y,2)) <= Math.pow(this.radius,2) )
+} )
+
+defObjProp(Selection.prototype, "moveAndResetDragOffset", function(offset) {
+    this.x.set(this.x + this.dragOffset.x)
+    this.y.set(this.y + this.dragOffset.y)
+    this.dragOffset = offset
+} )
+
+defObjProp(Circle.prototype, "getX", function() {
+    return ( this.x + this.dragOffset.x )
+} )
+defObjProp(Circle.prototype, "getY", function() {
+    return ( this.y + this.dragOffset.y )
 } )
 
 defObjProp(Circle.prototype, "maxX", function() {

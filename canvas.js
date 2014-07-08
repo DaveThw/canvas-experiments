@@ -825,6 +825,11 @@ defObjProp(Shape.prototype, "isMouseOver", function() {
 defObjProp(Shape.prototype, "isSelected", function() {
     return ( (this.parent === current_stack) ? this.selected : (this.parent ? this.parent.isSelected() : false) )
 } )
+defObjProp(Shape.prototype, "moveAndResetDragOffset", function(offset) {
+    this.x.set(this.x + this.dragOffset.x)
+    this.y.set(this.y + this.dragOffset.y)
+    this.dragOffset = offset
+} )
 
 
 function Rectangle(x, y, width, height, colour, line_width, line_colour) {

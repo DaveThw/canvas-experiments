@@ -705,9 +705,7 @@ function Mouse() {
         }
     }
     this.cancelDrag = function () {
-        for (var index = current_stack.selection.length; --index>=0; ) {
-            current_stack.selection[index].dragOffset = this.dragNoOffset
-        }
+        current_stack.selection.setDragOffset(this.dragNoOffset)
         this.dragging = false
         this.dragStart.x = this.dragStart.y = this.dragOffset.x = this.dragOffset.y = null
     }

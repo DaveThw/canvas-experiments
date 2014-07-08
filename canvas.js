@@ -277,13 +277,13 @@ defObjProp(Item.prototype, "isSelected", function() {
 
 function Group() {
     callParentConstructor(this, Group.prototype)
-    defObjProp(this, "length", 0, true)
+    defObjProp(this, "length", 0, false, true)
     defObjProp(this, "selection", new Selection(this))
     // this.cursorStyle = "pointer"
 }
 setObjProto(Group, Item)
 defObjProp(Group.prototype, "indexOf", Array.prototype.indexOf )
-// defObjProp(Group.prototype, "splice", Array.prototype.splice )
+defObjProp(Group.prototype, "splice", Array.prototype.splice )
 defObjProp(Group.prototype, "add", function(item) {
     // check to see if item is already in this group
     if (item.parent === this) {
@@ -303,7 +303,8 @@ defObjProp(Group.prototype, "add", function(item) {
         // item.index = this.length
         defObjProp(item, "index", this.length, false, true)
         // add the item to this group
-        this[this.length++] = item
+        this[this.length] = item
+        defObjProp(this, "length", this.length+1, false, true)
         // item.parent = this
         defObjProp(item, "parent", this, false, true)
         // if the item has a create function, call it...
@@ -351,7 +352,8 @@ defObjProp(Group.prototype, "delete", function(item) {
                 // this[index-1].index--
                 defObjProp(this[index-1], "index", index-1, false, true)
             }
-            delete this[--this.length]
+            defObjProp(this, "length", this.length-1, false, true)
+            delete this[this.length]
         }
         // if this leaves us with nothing in this group, we should also delete ourselves
         // (and if we are currently editing the group, move up a level...)
@@ -395,7 +397,8 @@ defObjProp(Group.prototype, "remove", function(item) {
                 // this[index-1].index--
                 defObjProp(this[index-1], "index", index-1, false, true)
             }
-            delete this[--this.length]
+            defObjProp(this, "length", this.length-1, false, true)
+            delete this[this.length]
         }
         return index
     }
@@ -529,7 +532,7 @@ function Selection(parent) {
     defObjProp(this, "parent", parent)
 }
 defObjProp(Selection.prototype, "indexOf", Array.prototype.indexOf )
-// defObjProp(Selection.prototype, "splice", Array.prototype.splice )
+defObjProp(Selection.prototype, "splice", Array.prototype.splice )
 defObjProp(Selection.prototype, "colour", null, true)
 defObjProp(Selection.prototype, "line_width", 1, true)
 defObjProp(Selection.prototype, "line_colour", new Colour(255,0,0), true)
@@ -556,9 +559,10 @@ defObjProp(Selection.prototype, "clear", function() {
 } )
 defObjProp(Selection.prototype, "delete", function() {
     for (; this.length>0; ) {
-        defObjProp(this, "length", this.length-1, false, true)
-        this[this.length].parent.delete(this[this.length])
-        delete this[this.length]
+        // deleting an item also automatically unselects it (by calling Selection.remove())
+        // defObjProp(this, "length", this.length-1, false, true)
+        this[this.length-1].parent.delete(this[this.length-1])
+        // delete this[this.length]
     }
     return true
 } )

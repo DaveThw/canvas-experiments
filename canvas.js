@@ -317,7 +317,7 @@ defObjProp(Group.prototype, "add", function(item) {
         // if the item has a create function, call it...
         if (item.create !== undefined) item.create();
         // mark our bounds as (potentially) out of date
-        this.bounds.maxX.set()
+        this.bounds.maxX = new IntVal()
         return item
     }
 } )
@@ -378,7 +378,7 @@ defObjProp(Group.prototype, "delete", function(item) {
             }
         } else {
             // mark our bounds as (potentially) out of date
-            this.bounds.maxX.set()
+            this.bounds.maxX = new IntVal()
         }
         return index
     }
@@ -408,7 +408,7 @@ defObjProp(Group.prototype, "remove", function(item) {
             defObjProp(this, "length", this.length-1, false, true)
             delete this[this.length]
             // mark our bounds as (potentially) out of date
-            this.bounds.maxX.set()
+            this.bounds.maxX = new IntVal()
         }
         return index
     }

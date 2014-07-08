@@ -447,7 +447,7 @@ defObjProp(Group.prototype, "draw", function(active) {
         drawingContext.strokeStyle = this.selection.line_colour.withRelAlpha(0.5)
         drawingContext.lineWidth = this.selection.line_width
         // drawingContext.strokeRect(minX, minY, maxX-minX, maxY-minY)
-        if (this.bounds.minX.value === undefined) this.updateBounds()
+        if (this.bounds.notDefined) this.updateBounds()
         drawingContext.strokeRect(this.bounds.minX, this.bounds.minY, this.bounds.maxX-this.bounds.minX, this.bounds.maxY-this.bounds.minY)
     }
 } )
@@ -802,6 +802,10 @@ function Bounds() {
     this.maxX = new IntVal();
     this.maxY = new IntVal();
 }
+defObjProp(Bounds.prototype, "notDefined", function() {
+    return (this.minX.value === undefined || this.minY.value === undefined || this.maxX.value === undefined || this.maxY.value === undefined)
+} )
+
 
 // Set up the Shape prototype.
 // I think we are unlikely to create any Shapes directly, but we will set this as the __proto__ for

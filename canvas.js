@@ -468,11 +468,7 @@ defObjProp(Group.prototype, "setDragOffset", function(offset) {
 defObjProp(Group.prototype, "moveAndResetDragOffset", function(offset) {
     for (var index=this.length; --index>=0; ) {
         if (this[index].moveAndResetDragOffset) this[index].moveAndResetDragOffset(offset)
-        else {
-            this[index].x.set(this[index].x + this[index].dragOffset.x)
-            this[index].y.set(this[index].y + this[index].dragOffset.y)
-            this[index].dragOffset = offset
-        }
+        else Shape.prototype.moveAndResetDragOffset.call(this[index], offset)
     }
 } )
 
@@ -637,11 +633,7 @@ defObjProp(Selection.prototype, "setDragOffset", function(offset) {
 defObjProp(Selection.prototype, "moveAndResetDragOffset", function(offset) {
     for (var index=this.length; --index>=0; ) {
         if (this[index].moveAndResetDragOffset) this[index].moveAndResetDragOffset(offset)
-        else {
-            this[index].x.set(this[index].x + this[index].dragOffset.x)
-            this[index].y.set(this[index].y + this[index].dragOffset.y)
-            this[index].dragOffset = offset
-        }
+        else Shape.prototype.moveAndResetDragOffset.call(this[index], offset)
     }
 } )
 

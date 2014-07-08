@@ -798,7 +798,7 @@ function Shape() {
     this.x = new IntVal(0);
     this.y = new IntVal(0);
     this.colour = new Colour(255, 255, 255)
-    this.line_width = 3
+    this.line_width = new IntVal(3)
     this.line_colour = new Colour(119, 119, 119)
     this.cursorStyle = "pointer"
     this.offset = new Position(0,0)
@@ -841,10 +841,10 @@ function Rectangle(x, y, width, height, colour, line_width, line_colour) {
     // this.id = newItemId++;
     this.x.set(x);
     this.y.set(y);
-    this.width = width;
-    this.height = height;
+    this.width = new IntVal(width);
+    this.height = new IntVal(height);
     this.colour = colour;
-    this.line_width = line_width;
+    this.line_width.set(line_width);
     this.line_colour = line_colour;
 }
 setObjProto(Rectangle, Shape)
@@ -873,9 +873,9 @@ function Circle(x, y, radius, colour, line_width, line_colour) {
     //  and now the id is initialied by the Item constructor function
     this.x.set(x);
     this.y.set(y);
-    this.radius = radius;
+    this.radius = new IntVal(radius);
     this.colour = colour;
-    this.line_width = line_width;
+    this.line_width.set(line_width);
     this.line_colour = line_colour;
     this.cursorStyle = "pointer";
 }

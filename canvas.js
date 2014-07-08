@@ -624,18 +624,8 @@ defObjProp(Selection.prototype, "addAll", function() {
     }
     return true
 } )
-defObjProp(Selection.prototype, "setDragOffset", function(offset) {
-    for (var index=this.length; --index>=0; ) {
-        if (this[index].setDragOffset) this[index].setDragOffset(offset)
-        else this[index].dragOffset = offset
-    }
-} )
-defObjProp(Selection.prototype, "moveAndResetDragOffset", function(offset) {
-    for (var index=this.length; --index>=0; ) {
-        if (this[index].moveAndResetDragOffset) this[index].moveAndResetDragOffset(offset)
-        else Shape.prototype.moveAndResetDragOffset.call(this[index], offset)
-    }
-} )
+defObjProp(Selection.prototype, "setDragOffset", Group.prototype.setDragOffset )
+defObjProp(Selection.prototype, "moveAndResetDragOffset", Group.prototype.moveAndResetDragOffset )
 
 
 

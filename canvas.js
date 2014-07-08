@@ -617,19 +617,14 @@ defObjProp(Selection.prototype, "remove", function(item) {
 //    return index
 } )
 defObjProp(Selection.prototype, "addAll", function() {
-    // clear the current list, ready to start over (this may be doable faster with this.splice()..?)
-    for (; this.length>0; ) {
-        defObjProp(this, "length", this.length-1, false, true)
-        delete this[this.length]
-    }
-    for (var index in this.parent) {
+    for (var index=this.parent.length; --index>=0; ) {
         if (!this.parent[index].selected) {
             this.parent[index].selected = true
             // if the item has a nowSelected() function, call it...
             if (this.parent[index].nowSelected) this.parent[index].nowSelected();
+            this[this.length] = this.parent[index]
+            defObjProp(this, "length", this.length+1, false, true)
         }
-        this[this.length] = this.parent[index]
-        defObjProp(this, "length", this.length+1, false, true)
     }
     return true
 } )

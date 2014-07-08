@@ -635,8 +635,8 @@ defObjProp(Selection.prototype, "moveAndResetOffset", function(offset) {
     for (var index=this.length; --index>=0; ) {
         if (this[index].moveAndResetOffset) this[index].moveAndResetOffset(offset)
         else {
-            this[index].x += this[index].offset.x
-            this[index].y += this[index].offset.y
+            this[index].x.set(this[index].x + this[index].offset.x)
+            this[index].y.set(this[index].y + this[index].offset.y)
             this[index].offset = offset
         }
     }
@@ -795,8 +795,8 @@ defObjProp(Colour.prototype, "withRelAlpha", function(alpha) {
 //   other shape types, so that we can inherit (default) functions and values from Shape
 function Shape() {
     callParentConstructor(this, Shape.prototype)
-    this.x = 0;
-    this.y = 0;
+    this.x = new IntVal(0);
+    this.y = new IntVal(0);
     this.colour = new Colour(255, 255, 255)
     this.line_width = 3
     this.line_colour = new Colour(119, 119, 119)
@@ -839,8 +839,8 @@ function Rectangle(x, y, width, height, colour, line_width, line_colour) {
     callParentConstructor(this, Rectangle.prototype)
     // this.type = "rectangle";
     // this.id = newItemId++;
-    this.x = x;
-    this.y = y;
+    this.x.set(x);
+    this.y.set(y);
     this.width = width;
     this.height = height;
     this.colour = colour;
@@ -871,8 +871,8 @@ function Circle(x, y, radius, colour, line_width, line_colour) {
     // this.id = newItemId++;
     //  now the id is initialised by items.add()...
     //  and now the id is initialied by the Item constructor function
-    this.x = x;
-    this.y = y;
+    this.x.set(x);
+    this.y.set(y);
     this.radius = radius;
     this.colour = colour;
     this.line_width = line_width;

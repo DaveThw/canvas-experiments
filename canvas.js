@@ -461,19 +461,19 @@ defObjProp(Group.prototype, "whichItem", function(recurse) {
     }
     return null
 } )
-defObjProp(Group.prototype, "setOffset", function(offset) {
+defObjProp(Group.prototype, "setDragOffset", function(offset) {
     for (var index=this.length; --index>=0; ) {
-        if (this[index].setOffset) this[index].setOffset(offset)
-        else this[index].offset = offset
+        if (this[index].setDragOffset) this[index].setDragOffset(offset)
+        else this[index].dragOffset = offset
     }
 } )
-defObjProp(Group.prototype, "moveAndResetOffset", function(offset) {
+defObjProp(Group.prototype, "moveAndResetDragOffset", function(offset) {
     for (var index=this.length; --index>=0; ) {
-        if (this[index].moveAndResetOffset) this[index].moveAndResetOffset(offset)
+        if (this[index].moveAndResetDragOffset) this[index].moveAndResetDragOffset(offset)
         else {
-            this[index].x.set(this[index].x + this[index].offset.x)
-            this[index].y.set(this[index].y + this[index].offset.y)
-            this[index].offset = offset
+            this[index].x.set(this[index].x + this[index].dragOffset.x)
+            this[index].y.set(this[index].y + this[index].dragOffset.y)
+            this[index].dragOffset = offset
         }
     }
 } )
@@ -625,19 +625,19 @@ defObjProp(Selection.prototype, "addAll", function() {
     }
     return true
 } )
-defObjProp(Selection.prototype, "setOffset", function(offset) {
+defObjProp(Selection.prototype, "setDragOffset", function(offset) {
     for (var index=this.length; --index>=0; ) {
-        if (this[index].setOffset) this[index].setOffset(offset)
-        else this[index].offset = offset
+        if (this[index].setDragOffset) this[index].setDragOffset(offset)
+        else this[index].dragOffset = offset
     }
 } )
-defObjProp(Selection.prototype, "moveAndResetOffset", function(offset) {
+defObjProp(Selection.prototype, "moveAndResetDragOffset", function(offset) {
     for (var index=this.length; --index>=0; ) {
-        if (this[index].moveAndResetOffset) this[index].moveAndResetOffset(offset)
+        if (this[index].moveAndResetDragOffset) this[index].moveAndResetDragOffset(offset)
         else {
-            this[index].x.set(this[index].x + this[index].offset.x)
-            this[index].y.set(this[index].y + this[index].offset.y)
-            this[index].offset = offset
+            this[index].x.set(this[index].x + this[index].dragOffset.x)
+            this[index].y.set(this[index].y + this[index].dragOffset.y)
+            this[index].dragOffset = offset
         }
     }
 } )
@@ -683,7 +683,7 @@ function Mouse() {
             this.dragStart.x = this.x
             this.dragStart.y = this.y
             this.dragOffset.x = this.dragOffset.y = 0
-            current_stack.selection.setOffset(this.dragOffset)
+            current_stack.selection.setDragOffset(this.dragOffset)
         }
     }
     this.doDrag = function () {
@@ -698,7 +698,7 @@ function Mouse() {
                 this.dragOffset.x = this.x - this.dragStart.x
                 this.dragOffset.y = this.y - this.dragStart.y
                 // one or more items selected - move them!
-                current_stack.selection.moveAndResetOffset(this.dragNoOffset)
+                current_stack.selection.moveAndResetDragOffset(this.dragNoOffset)
             }
             this.dragging = false
             this.dragStart.x = this.dragStart.y = this.dragOffset.x = this.dragOffset.y = null
@@ -706,7 +706,7 @@ function Mouse() {
     }
     this.cancelDrag = function () {
         for (var index = current_stack.selection.length; --index>=0; ) {
-            current_stack.selection[index].offset = this.dragNoOffset
+            current_stack.selection[index].dragOffset = this.dragNoOffset
         }
         this.dragging = false
         this.dragStart.x = this.dragStart.y = this.dragOffset.x = this.dragOffset.y = null
@@ -801,7 +801,7 @@ function Shape() {
     this.line_width = new IntVal(3)
     this.line_colour = new Colour(119, 119, 119)
     this.cursorStyle = "pointer"
-    this.offset = new Position(0,0)
+    this.dragOffset = new Position(0,0)
 }
 setObjProto(Shape, Item)
 defObjProp(Shape.prototype, "draw", function(context, colour, line_colour) {
@@ -901,7 +901,7 @@ defObjProp(Circle.prototype, "draw", function(context, colour, line_colour) {
     }
     
     context.beginPath()
-    context.arc(this.x+this.offset.x, this.y+this.offset.y, this.radius, 0, Math.PI*2, false)
+    context.arc(this.x+this.dragOffset.x, this.y+this.dragOffset.y, this.radius, 0, Math.PI*2, false)
     context.closePath()
     
     context.fillStyle = colour.toString()
@@ -913,20 +913,20 @@ defObjProp(Circle.prototype, "draw", function(context, colour, line_colour) {
 } )
 
 defObjProp(Circle.prototype, "isMouseOver", function() {
-    return ( (Math.pow(this.x + this.offset.x - mouse.x,2) + Math.pow(this.y + this.offset.y - mouse.y,2)) <= Math.pow(this.radius,2) )
+    return ( (Math.pow(this.x + this.dragOffset.x - mouse.x,2) + Math.pow(this.y + this.dragOffset.y - mouse.y,2)) <= Math.pow(this.radius,2) )
 } )
 
 defObjProp(Circle.prototype, "maxX", function() {
-    return ( this.x + this.offset.x + this.radius + (this.line_width / 2) )
+    return ( this.x + this.dragOffset.x + this.radius + (this.line_width / 2) )
 } )
 defObjProp(Circle.prototype, "minX", function() {
-    return ( this.x + this.offset.x - this.radius - (this.line_width / 2) )
+    return ( this.x + this.dragOffset.x - this.radius - (this.line_width / 2) )
 } )
 defObjProp(Circle.prototype, "maxY", function() {
-    return ( this.y + this.offset.y + this.radius + (this.line_width / 2) )
+    return ( this.y + this.dragOffset.y + this.radius + (this.line_width / 2) )
 } )
 defObjProp(Circle.prototype, "minY", function() {
-    return ( this.y + this.offset.y - this.radius - (this.line_width / 2) )
+    return ( this.y + this.dragOffset.y - this.radius - (this.line_width / 2) )
 } )
 
 

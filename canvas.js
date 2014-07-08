@@ -471,8 +471,8 @@ defObjProp(Group.prototype, "moveAndResetOffset", function(offset) {
     for (var index=this.length; --index>=0; ) {
         if (this[index].moveAndResetOffset) this[index].moveAndResetOffset(offset)
         else {
-            this[index].x += this[index].offset.x
-            this[index].y += this[index].offset.y
+            this[index].x.set(this[index].x + this[index].offset.x)
+            this[index].y.set(this[index].y + this[index].offset.y)
             this[index].offset = offset
         }
     }

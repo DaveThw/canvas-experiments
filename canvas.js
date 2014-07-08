@@ -733,6 +733,8 @@ var mouse = new Mouse()
 // the main reason I've made this is that it is an object, so can be 'copied' by reference and
 //   linked from multiple places - each 'copy' will point to the same original object, and therefore
 //   keep up with any changes made.
+// we can optionally set x.undefinedString to (a string) to be returned by toString if our value is
+//   undefined.  Defaults to an empty string, but could be 'undefined' or '<none>' for example...
 function IntVal(val) {
     this.set(val)
 }
@@ -744,8 +746,9 @@ defObjProp(IntVal.prototype, "valueOf", function() {
 } )
 defObjProp(IntVal.prototype, "get", IntVal.prototype.valueOf)
 defObjProp(IntVal.prototype, "toString", function() {
-    return (this.value!==undefined ? '' + this.value : '')
+    return (this.value!==undefined ? '' + this.value : '' + this.undefinedString)
 } )
+defObjProp(IntVal.prototype, "undefinedString", '')
 
 
 

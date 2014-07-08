@@ -282,7 +282,6 @@ function Group() {
     // this.cursorStyle = "pointer"
 }
 setObjProto(Group, Item)
-defObjProp(Group.prototype, "indexOf", Array.prototype.indexOf )
 defObjProp(Group.prototype, "splice", Array.prototype.splice )
 defObjProp(Group.prototype, "add", function(item) {
     // check to see if item is already in this group
@@ -318,8 +317,6 @@ defObjProp(Group.prototype, "delete", function(item) {
         // can't delete an item from another group!
         return -1
     } else {
-        // var index = this.indexOf(item)
-        // if (index != -1) {
         var index = item.index
         if (index !== undefined) {
             // unselect this item, if necessary
@@ -381,8 +378,6 @@ defObjProp(Group.prototype, "remove", function(item) {
         // can't remove an item from another group!
         return -1
     } else {
-        // var index = this.indexOf(item)
-        // if (index != -1) {
         var index = item.index
         if (index !== undefined) {
             // unset the item's parent property, in case the base object is referenced from anywhere

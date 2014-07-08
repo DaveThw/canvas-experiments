@@ -287,6 +287,7 @@ function Group() {
     defObjProp(this, "selection", new Selection(this))
     defObjProp(this, "bounds", new Bounds())
     // this.cursorStyle = "pointer"
+    defObjProp(this, "dragOffset", mouse.dragNoOffset, false, true)
 }
 setObjProto(Group, Item)
 defObjProp(Group.prototype, "splice", Array.prototype.splice )
@@ -455,7 +456,7 @@ defObjProp(Group.prototype, "draw", function(active) {
         drawingContext.lineWidth = this.selection.line_width
         // drawingContext.strokeRect(minX, minY, maxX-minX, maxY-minY)
         if (this.bounds.notDefined) this.updateBounds()
-        drawingContext.strokeRect(this.bounds.minX, this.bounds.minY, this.bounds.maxX-this.bounds.minX, this.bounds.maxY-this.bounds.minY)
+        drawingContext.strokeRect(this.bounds.minX + this.dragOffset.x, this.bounds.minY + this.dragOffset.y, this.bounds.maxX-this.bounds.minX, this.bounds.maxY-this.bounds.minY)
     }
 } )
 defObjProp(Group.prototype, "whichItem", function(recurse) {
@@ -476,16 +477,12 @@ defObjProp(Group.prototype, "whichItem", function(recurse) {
     return null
 } )
 defObjProp(Group.prototype, "setDragOffset", function(offset) {
-    for (var index=this.length; --index>=0; ) {
-        if (this[index].setDragOffset) this[index].setDragOffset(offset)
-        else this[index].dragOffset = offset
-    }
+    defObjProp(this, "dragOffset", offset, false, true)
+    Selection.prototype.setDragOffset.call(this, offset)
 } )
 defObjProp(Group.prototype, "moveAndResetDragOffset", function(offset) {
-    for (var index=this.length; --index>=0; ) {
-        if (this[index].moveAndResetDragOffset) this[index].moveAndResetDragOffset(offset)
-        else Shape.prototype.moveAndResetDragOffset.call(this[index], offset)
-    }
+    defObjProp(this, "dragOffset", offset, false, true)
+    Selection.prototype.moveAndResetDragOffset.call(this, offset)
 } )
 defObjProp(Group.prototype, "editStart", function() {
 } )
@@ -655,8 +652,18 @@ defObjProp(Selection.prototype, "addAll", function() {
     }
     return true
 } )
-defObjProp(Selection.prototype, "setDragOffset", Group.prototype.setDragOffset )
-defObjProp(Selection.prototype, "moveAndResetDragOffset", Group.prototype.moveAndResetDragOffset )
+defObjProp(Selection.prototype, "setDragOffset", function(offset) {
+    for (var index=this.length; --index>=0; ) {
+        if (this[index].setDragOffset) this[index].setDragOffset(offset)
+        else this[index].dragOffset = offset
+    }
+} )
+defObjProp(Selection.prototype, "moveAndResetDragOffset", function(offset) {
+    for (var index=this.length; --index>=0; ) {
+        if (this[index].moveAndResetDragOffset) this[index].moveAndResetDragOffset(offset)
+        else Shape.prototype.moveAndResetDragOffset.call(this[index], offset)
+    }
+} )
 
 
 
@@ -826,7 +833,7 @@ function Shape() {
     this.line_width = new IntVal(3)
     this.line_colour = new Colour(119, 119, 119)
     this.cursorStyle = "pointer"
-    this.dragOffset = new Position(0,0)
+    this.dragOffset = mouse.dragNoOffset
 }
 setObjProto(Shape, Item)
 defObjProp(Shape.prototype, "draw", function(context, colour, line_colour) {
@@ -1376,14 +1383,15 @@ function init() {
     // get the drawign context for the canvas
     drawingContext = canvasElement.getContext("2d");
 
+    // New Groups refer to mouse.dragNoOffset, so we need to define mouse before stack...
+    mouse = new Mouse()
+    
     // 'stack' is the variable that always points to the top level group
     stack = new Group()
     // 'current_stack' points to the group that we are currently viewing/editing
     current_stack = stack
     
     items = new ListOfItems()
-    
-    mouse = new Mouse()
 
     // listen out for clicks
     //canvasElement.addEventListener("click", canvasClick, false);

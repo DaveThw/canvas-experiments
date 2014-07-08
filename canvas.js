@@ -810,7 +810,7 @@ function Bounds() {
     this.maxY = new IntVal();
 }
 defObjProp(Bounds.prototype, "notDefined", function() {
-    return (this.minX.value === undefined || this.minY.value === undefined || this.maxX.value === undefined || this.maxY.value === undefined)
+    return (this.maxX.value === undefined || this.maxY.value === undefined || this.minX.value === undefined || this.minY.value === undefined)
 } )
 
 

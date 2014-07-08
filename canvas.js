@@ -12,6 +12,13 @@ var canvasElement;
 var drawingContext;
 var status = {};
 
+// global variables
+var stack
+var current_stack
+var mouse
+var items
+
+
 var timings = [ {label: "init", time: new Date().getTime()} ];
 defObjProp(timings, "add", function (label) {
     // console.timeStamp(label)
@@ -189,7 +196,6 @@ defObjProp(ListOfItems.prototype, "count", function() {
     return this.length
 } )
 
-var items = new ListOfItems()
 
 
 
@@ -279,6 +285,7 @@ function Group() {
     callParentConstructor(this, Group.prototype)
     defObjProp(this, "length", 0, false, true)
     defObjProp(this, "selection", new Selection(this))
+    defObjProp(this, "bounds", new Bounds())
     // this.cursorStyle = "pointer"
 }
 setObjProto(Group, Item)
@@ -439,7 +446,9 @@ defObjProp(Group.prototype, "draw", function(active) {
     if (thisIsSelected) {
         drawingContext.strokeStyle = this.selection.line_colour.withRelAlpha(0.5)
         drawingContext.lineWidth = this.selection.line_width
-        drawingContext.strokeRect(minX, minY, maxX-minX, maxY-minY)
+        // drawingContext.strokeRect(minX, minY, maxX-minX, maxY-minY)
+        if (this.bounds.minX.value === undefined) this.updateBounds()
+        drawingContext.strokeRect(this.bounds.minX, this.bounds.minY, this.bounds.maxX-this.bounds.minX, this.bounds.maxY-this.bounds.minY)
     }
 } )
 defObjProp(Group.prototype, "whichItem", function(recurse) {
@@ -471,11 +480,26 @@ defObjProp(Group.prototype, "moveAndResetDragOffset", function(offset) {
         else Shape.prototype.moveAndResetDragOffset.call(this[index], offset)
     }
 } )
-
-// 'stack' is the variable that always points to the top level group
-var stack = new Group()
-// 'current_stack' points to the group that we are currently viewing/editing
-var current_stack = stack
+defObjProp(Group.prototype, "editStart", function() {
+} )
+defObjProp(Group.prototype, "editFinish", function() {
+    this.updateBounds()
+} )
+defObjProp(Group.prototype, "updateBounds", function() {
+    var index=this.length-1
+    if (index >= 0) {
+        this.bounds.minX = this[index].bounds.minX
+        this.bounds.minY = this[index].bounds.minY
+        this.bounds.maxX = this[index].bounds.maxX
+        this.bounds.maxY = this[index].bounds.maxY
+        for (; --index>=0; ) {
+            this.bounds.minX = (this[index].bounds.minX < this.bounds.minX ? this[index].bounds.minX : this.bounds.minX)
+            this.bounds.minY = (this[index].bounds.minY < this.bounds.minY ? this[index].bounds.minY : this.bounds.minY)
+            this.bounds.maxX = (this[index].bounds.maxX > this.bounds.maxX ? this[index].bounds.maxX : this.bounds.maxX)
+            this.bounds.maxY = (this[index].bounds.maxY > this.bounds.maxY ? this[index].bounds.maxY : this.bounds.maxY)
+        }
+    }
+} )
 
 // 'stack' Object, for keeping track of the order in which items are to be displayed
 // this object should be intrinsically tied with the list of items - every item should appear
@@ -697,7 +721,6 @@ function Mouse() {
 }
 setObjProto(Mouse, Position)
 
-var mouse = new Mouse()
 
 
 
@@ -773,13 +796,21 @@ defObjProp(Colour.prototype, "withRelAlpha", function(alpha) {
 \**************************************************************************************************/
 
 
+function Bounds() {
+    this.minX = new IntVal();
+    this.minY = new IntVal();
+    this.maxX = new IntVal();
+    this.maxY = new IntVal();
+}
+
 // Set up the Shape prototype.
 // I think we are unlikely to create any Shapes directly, but we will set this as the __proto__ for
 //   other shape types, so that we can inherit (default) functions and values from Shape
 function Shape() {
     callParentConstructor(this, Shape.prototype)
-    this.x = new IntVal(0);
-    this.y = new IntVal(0);
+    this.x = new IntVal()
+    this.y = new IntVal()
+    defObjProp(this, "bounds", new Bounds())
     this.colour = new Colour(255, 255, 255)
     this.line_width = new IntVal(3)
     this.line_colour = new Colour(119, 119, 119)
@@ -810,6 +841,10 @@ defObjProp(Shape.prototype, "isSelected", function() {
 defObjProp(Shape.prototype, "moveAndResetDragOffset", function(offset) {
     this.x.set(this.x + this.dragOffset.x)
     this.y.set(this.y + this.dragOffset.y)
+    this.bounds.minX.set(this.x-1)
+    this.bounds.maxX.set(this.x+1)
+    this.bounds.minY.set(this.y-1)
+    this.bounds.maxY.set(this.y+1)
     this.dragOffset = offset
 } )
 
@@ -859,13 +894,14 @@ function Circle(x, y, radius, colour, line_width, line_colour) {
     // this.id = newItemId++;
     //  now the id is initialised by items.add()...
     //  and now the id is initialied by the Item constructor function
-    this.x.set(x);
-    this.y.set(y);
-    this.radius = new IntVal(radius);
-    this.colour = colour;
-    this.line_width.set(line_width);
-    this.line_colour = line_colour;
-    this.cursorStyle = "pointer";
+    this.x.set(x)
+    this.y.set(y)
+    this.radius = new IntVal(radius)
+    this.colour = colour
+    this.line_width.set(line_width)
+    this.line_colour = line_colour
+    this.cursorStyle = "pointer"
+    this.updateBounds()
 }
 setObjProto(Circle, Shape)
 
@@ -907,7 +943,14 @@ defObjProp(Circle.prototype, "isMouseOver", function() {
 defObjProp(Circle.prototype, "moveAndResetDragOffset", function(offset) {
     this.x.set(this.x + this.dragOffset.x)
     this.y.set(this.y + this.dragOffset.y)
+    this.updateBounds()
     this.dragOffset = offset
+} )
+defObjProp(Circle.prototype, "updateBounds", function() {
+    this.bounds.minX.set(this.x - this.radius - (this.line_width / 2))
+    this.bounds.maxX.set(this.x + this.radius + (this.line_width / 2))
+    this.bounds.minY.set(this.y - this.radius - (this.line_width / 2))
+    this.bounds.maxY.set(this.y + this.radius + (this.line_width / 2))
 } )
 
 defObjProp(Circle.prototype, "getX", function() {
@@ -1104,6 +1147,7 @@ function canvasDoubleClick(e) {
             switch (this_item.constructor) {
                 case Group:
                     current_stack = this_item
+                    current_stack.editStart()
                     this_item = which_item()
                     break;
             }
@@ -1237,6 +1281,7 @@ function canvasKeyDown(e) {
             setCursorStyle(which_item());
         } else if (current_stack !== stack) {
             // if we are editing a group, come up a level out of the group
+            current_stack.editFinish()
             current_stack = current_stack.parent
             draw();
             setCursorStyle(which_item());
@@ -1319,6 +1364,15 @@ function init() {
     canvasElement.tabIndex = 1;
     // get the drawign context for the canvas
     drawingContext = canvasElement.getContext("2d");
+
+    // 'stack' is the variable that always points to the top level group
+    stack = new Group()
+    // 'current_stack' points to the group that we are currently viewing/editing
+    current_stack = stack
+    
+    items = new ListOfItems()
+    
+    mouse = new Mouse()
 
     // listen out for clicks
     //canvasElement.addEventListener("click", canvasClick, false);
